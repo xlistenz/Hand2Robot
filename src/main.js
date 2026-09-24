@@ -12,6 +12,8 @@ const performanceMonitor = new PerformanceMonitor();
 const gestureStabilizers = new Map();
 const pinchStates = new Map();
 let tracker;
+let cameraStartToken = 0;
+let cameraStarting = false;
 let robotArm;
 let robotArmLoading;
 let latestHands = [];
@@ -101,9 +103,7 @@ function render(now) {
   requestAnimationFrame(render);
 }
 
-function cameraError(error) {
-  tracker?.destroy();
-  tracker = null;
+function resetCameraState() {
   latestHands = [];
   latestObjectHand = null;
   robotController.updateFromHands([], performance.now());
@@ -111,6 +111,24 @@ function cameraError(error) {
   gestureStabilizers.clear();
   virtualHand.update([]);
   drawCameraLandmarks(ui.refs.cameraOverlay, []);
+}
+
+function stopCamera() {
+  cameraStartToken += 1;
+  cameraStarting = false;
+  const currentTracker = tracker;
+  tracker = null;
+  currentTracker?.destroy();
+  resetCameraState();
+  ui.setStatus("offline");
+}
+
+function cameraError(error) {
+  cameraStartToken += 1;
+  cameraStarting = false;
+  tracker?.destroy();
+  tracker = null;
+  resetCameraState();
   ui.setStatus("offline");
   const messages = {
     NotAllowedError: "Camera access was denied. Allow camera access for this site in your browser settings.",
@@ -118,7 +136,7 @@ function cameraError(error) {
     NotReadableError: "The camera is in use by another application. Close it and try again.",
     BROWSER_UNSUPPORTED: "This browser does not support the Camera API. Try an up-to-date version of Chrome, Edge, or Safari.",
   };
-  ui.error(messages[error.message] || "The camera or hand-tracking models could not start. Check your connection and try again.");
+  ui.error(messages[error.name] || messages[error.message] || "The camera or hand-tracking models could not start. Check your connection and try again.");
 }
 
 function handleMode(mode) {
@@ -152,25 +170,28 @@ ui.bind({
 });
 
 ui.onStart(async () => {
-  if (tracker?.running) {
-    tracker.destroy();
-    tracker = null;
-    latestHands = [];
-    latestObjectHand = null;
-    robotController.updateFromHands([], performance.now());
-    virtualHand.update([]);
-    drawCameraLandmarks(ui.refs.cameraOverlay, []);
-    pinchStates.clear();
-    gestureStabilizers.clear();
-    ui.setStatus("offline");
+  if (cameraStarting || tracker?.running) {
+    stopCamera();
     return;
   }
+  const startToken = ++cameraStartToken;
+  cameraStarting = true;
+  ui.setStatus("requesting");
   try {
-    ui.setStatus("loading");
     const { HandTracking } = await import("./handTracking.js");
-    tracker = new HandTracking(ui.refs.video, { onResult: handleResult, onStatus: ui.setStatus });
-    await tracker.start();
-  } catch (error) { cameraError(error); }
+    if (startToken !== cameraStartToken) return;
+    const currentTracker = new HandTracking(ui.refs.video, { onResult: handleResult, onStatus: ui.setStatus });
+    tracker = currentTracker;
+    await currentTracker.start();
+    if (startToken !== cameraStartToken) {
+      currentTracker.destroy();
+      return;
+    }
+    cameraStarting = false;
+  } catch (error) {
+    if (startToken !== cameraStartToken) return;
+    cameraError(error);
+  }
 });
 
 ui.refs.mirror.addEventListener("change", () => ui.refs.video.classList.toggle("mirrored", ui.getOptions().mirror));

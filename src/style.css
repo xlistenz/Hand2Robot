@@ -67,7 +67,7 @@ button:focus-visible, input:focus-visible, a:focus-visible { outline: 2px solid 
 .camera-frame video { z-index: 1; }
 .camera-frame video.mirrored { transform: scaleX(-1); }
 .camera-frame canvas { z-index: 2; pointer-events: none; }
-.camera-placeholder { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; padding: 16px; background: var(--surface-alt); text-align: center; }
+.camera-placeholder { position: absolute; inset: 0; z-index: 3; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; padding: 16px; background: var(--surface-alt); text-align: center; }
 .camera-placeholder.hidden { display: none; }
 .camera-placeholder strong { margin-top: 5px; font-size: 12px; font-weight: 600; }
 .camera-placeholder > span:not(.placeholder-mark) { max-width: 210px; color: var(--muted); font-size: 11px; line-height: 1.45; }

@@ -9,7 +9,7 @@ export function createUI() {
   let toastTimer;
 
   const refs = {
-    video: $("#camera-video"), cameraOverlay: $("#camera-overlay"), placeholder: $("#camera-placeholder"), start: $("#start-camera"),
+    video: $("#camera-video"), cameraOverlay: $("#camera-overlay"), placeholder: $("#camera-placeholder"), placeholderTitle: $("#camera-placeholder strong"), placeholderMessage: $("#camera-placeholder > span:not(.placeholder-mark)"), start: $("#start-camera"),
     cameraState: $("#camera-state"), cameraResolution: $("#camera-resolution"), headerAiFps: $("#header-ai-fps"),
     tracking: $("#tracking-state"), stageMessage: $("#stage-message"), virtualStage: $("#virtual-stage"), robotStage: $("#robot-stage"), robotCanvas: $("#robot-canvas"),
     skeleton: $("#skeleton-toggle"), mirror: $("#mirror-toggle"), modeLabel: $("#mode-label"), gestureLabel: $("#gesture-label"),
@@ -22,6 +22,7 @@ export function createUI() {
 
   function setStatus(status) {
     const states = {
+      requesting: ["REQUESTING", "Waiting for camera permission…", "loading"],
       loading: ["LOADING", "Loading hand-tracking models…", "loading"],
       active: ["ONLINE", "Camera online", "active"],
       offline: ["OFFLINE", "Camera offline", "offline"],
@@ -31,18 +32,30 @@ export function createUI() {
     refs.cameraState.className = `live-badge ${className}`;
     refs.bottomStatus.textContent = bottom;
 
-    if (status === "loading") refs.start.disabled = true;
+    if (status === "requesting" || status === "loading") {
+      refs.placeholderTitle.textContent = status === "requesting" ? "Waiting for camera access" : "Preparing hand tracking";
+      refs.placeholderMessage.textContent = status === "requesting" ? "Respond to the browser permission prompt, or cancel startup." : "This can take a moment. You can cancel startup at any time.";
+      refs.start.textContent = "CANCEL START";
+      refs.start.disabled = false;
+      refs.start.setAttribute("aria-label", "Cancel camera startup");
+    }
     if (status === "active") {
       refs.placeholder.classList.add("hidden");
       refs.stageMessage.classList.add("hidden");
+      refs.placeholderTitle.textContent = "Camera is offline";
+      refs.placeholderMessage.textContent = "Start the camera to begin hand tracking.";
       refs.start.textContent = "STOP CAMERA";
       refs.start.disabled = false;
+      refs.start.setAttribute("aria-label", "Stop camera");
     }
     if (status === "offline") {
       refs.placeholder.classList.remove("hidden");
       refs.stageMessage.classList.remove("hidden");
+      refs.placeholderTitle.textContent = "Camera is offline";
+      refs.placeholderMessage.textContent = "Start the camera to begin hand tracking.";
       refs.start.textContent = "START CAMERA";
       refs.start.disabled = false;
+      refs.start.setAttribute("aria-label", "Start camera");
       refs.cameraResolution.textContent = "— × —";
       refs.tracking.innerHTML = "<i aria-hidden=\"true\"></i> WAITING";
       refs.tracking.classList.remove("active");

@@ -15,11 +15,15 @@ export class HandTracking {
     this.lastInferenceTime = 0;
     this.inferenceInterval = 1000 / 30;
     this.running = false;
+    this.starting = false;
+    this.cancelled = false;
   }
 
   async load() {
+    if (this.cancelled) return;
     this.onStatus?.("loading");
     const vision = await FilesetResolver.forVisionTasks(WASM_PATH);
+    if (this.cancelled) return;
     const options = {
       runningMode: "VIDEO",
       numHands: 2,
@@ -28,28 +32,58 @@ export class HandTracking {
       minTrackingConfidence: 0.5,
     };
     try {
-      this.gestureRecognizer = await GestureRecognizer.createFromOptions(vision, {
+      const recognizer = await GestureRecognizer.createFromOptions(vision, {
         ...options,
         baseOptions: { modelAssetPath: GESTURE_MODEL, delegate: "GPU" },
       });
+      if (this.cancelled) recognizer.close();
+      else this.gestureRecognizer = recognizer;
     } catch (gpuError) {
-      this.gestureRecognizer = await GestureRecognizer.createFromOptions(vision, {
+      if (this.cancelled) return;
+      const recognizer = await GestureRecognizer.createFromOptions(vision, {
         ...options,
         baseOptions: { modelAssetPath: GESTURE_MODEL, delegate: "CPU" },
       });
+      if (this.cancelled) recognizer.close();
+      else this.gestureRecognizer = recognizer;
     }
   }
 
   async start() {
     if (!navigator.mediaDevices?.getUserMedia) throw new Error("BROWSER_UNSUPPORTED");
-    this.stop();
-    this.stream = await navigator.mediaDevices.getUserMedia({ audio: false, video: { facingMode: "user", width: { ideal: 640, max: 1280 }, height: { ideal: 480, max: 720 }, frameRate: { ideal: 30, max: 30 } } });
-    this.video.srcObject = this.stream;
-    await this.video.play();
-    if (!this.gestureRecognizer) await this.load();
-    this.running = true;
-    this.onStatus?.("active");
-    this.loop();
+    this.cancelled = false;
+    this.running = false;
+    cancelAnimationFrame(this.animationFrame);
+    this.stopStream();
+    this.starting = true;
+    this.onStatus?.("requesting");
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: false, video: { facingMode: "user", width: { ideal: 640, max: 1280 }, height: { ideal: 480, max: 720 }, frameRate: { ideal: 30, max: 30 } } });
+      if (this.cancelled) {
+        stream.getTracks().forEach((track) => track.stop());
+        return;
+      }
+      this.stream = stream;
+      this.video.srcObject = stream;
+      await this.video.play();
+      if (this.cancelled) return;
+      if (!this.gestureRecognizer) await this.load();
+      if (this.cancelled) {
+        this.stopStream();
+        this.closeRecognizer();
+        return;
+      }
+      this.starting = false;
+      this.running = true;
+      this.onStatus?.("active");
+      this.loop();
+    } catch (error) {
+      const wasCancelled = this.cancelled;
+      this.stop();
+      if (!wasCancelled) throw error;
+    } finally {
+      if (this.cancelled) this.starting = false;
+    }
   }
 
   loop() {
@@ -66,8 +100,14 @@ export class HandTracking {
   }
 
   stop() {
+    this.cancelled = true;
     this.running = false;
+    this.starting = false;
     cancelAnimationFrame(this.animationFrame);
+    this.stopStream();
+  }
+
+  stopStream() {
     this.stream?.getTracks().forEach((track) => track.stop());
     this.stream = null;
     this.video.srcObject = null;
@@ -75,6 +115,10 @@ export class HandTracking {
 
   destroy() {
     this.stop();
+    this.closeRecognizer();
+  }
+
+  closeRecognizer() {
     this.gestureRecognizer?.close();
     this.gestureRecognizer = null;
   }
