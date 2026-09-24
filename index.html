@@ -1,28 +1,188 @@
 <!doctype html>
-<html lang="zh-Hant">
+<html lang="en">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <meta name="theme-color" content="#080d1d" />
-    <meta name="description" content="AI Gesture Lab：用你的手控制虛擬手掌與機械臂。" />
-    <title>AI Gesture Lab | Virtual Robot Arm</title>
+    <meta name="theme-color" content="#f4f2ed" />
+    <meta name="description" content="A browser-based hand tracking and virtual robotics workspace powered by MediaPipe and Three.js." />
+    <title>Gesture Lab | Virtual Robotics Workspace</title>
   </head>
   <body>
-    <div class="ambient ambient-one"></div><div class="ambient ambient-two"></div>
-    <header class="topbar"><a class="brand" href="./"><span class="brand-mark">◈</span><span><strong>AI GESTURE LAB</strong><small>COMPUTER VISION / ROBOTICS</small></span></a><nav class="main-menu" aria-label="主選單"><button class="menu-button active" data-app-mode="virtual" type="button">VIRTUAL HAND</button><button class="menu-button" data-app-mode="robot" type="button">ROBOT ARM</button><button class="menu-button" data-app-mode="object" type="button">OBJECT CONTROL</button><button class="menu-button" data-app-mode="lab" type="button">GESTURE LAB</button><button class="menu-button" data-app-mode="settings" type="button">SETTINGS</button></nav><div class="topbar-actions"><span class="privacy-chip"><span class="status-dot"></span> DEVICE-ONLY AI</span><button class="icon-button" id="help-button" type="button" aria-label="開啟使用說明">?</button></div></header>
+    <header class="topbar">
+      <a class="brand" href="./" aria-label="Gesture Lab home">
+        <span class="brand-mark" aria-hidden="true"><svg viewBox="0 0 32 32"><path d="M5 23 12 9l8 14 7-14" /><circle cx="5" cy="23" r="2" /><circle cx="12" cy="9" r="2" /><circle cx="20" cy="23" r="2" /><circle cx="27" cy="9" r="2" /></svg></span>
+        <span><strong>GESTURE LAB</strong><small>HAND CONTROL / ROBOTICS</small></span>
+      </a>
+
+      <nav class="main-menu" aria-label="Workspace modes">
+        <button class="menu-button active" data-app-mode="virtual" type="button">VIRTUAL HAND</button>
+        <button class="menu-button" data-app-mode="robot" type="button">ROBOT ARM</button>
+        <button class="menu-button" data-app-mode="object" type="button">OBJECTS</button>
+        <button class="menu-button" data-app-mode="lab" type="button">GESTURE LAB</button>
+        <button class="menu-button" data-app-mode="settings" type="button">SETTINGS</button>
+      </nav>
+
+      <div class="topbar-status" aria-label="System status">
+        <div class="status-readout"><span>CAMERA</span><b class="live-badge" id="camera-state">OFFLINE</b></div>
+        <div class="status-readout"><span>TRACKING</span><b class="tracking-pill" id="tracking-state"><i></i> WAITING</b></div>
+        <div class="status-readout fps-readout"><span>AI FPS</span><b class="mono" id="header-ai-fps">--</b></div>
+      </div>
+
+      <button class="icon-button" id="help-button" type="button" aria-label="Open quick-start guide" title="Quick start">?</button>
+    </header>
+
     <main class="app-shell">
-      <section class="hero-row"><div><p class="kicker">AI GESTURE LAB / LIVE CONTROL</p><h1>用你的手，<em>控制數位世界。</em></h1><p class="hero-copy">即時手勢追蹤、虛擬骨架與模擬機械臂，在瀏覽器內完成。</p></div><div class="mode-switcher" role="tablist" aria-label="操作模式"><button class="mode-button active" data-mode="virtual" type="button"><span>01</span>Virtual Hand</button><button class="mode-button" data-mode="robot" type="button"><span>02</span>Robot Arm</button><button class="mode-button" data-mode="object" type="button"><span>03</span>Object Control</button><button class="mode-button" data-mode="lab" type="button"><span>04</span>Gesture Lab</button></div></section>
-      <section class="workspace">
-        <aside class="panel camera-panel"><div class="panel-heading"><div><span class="panel-index">01 / INPUT</span><h2>Camera Preview</h2></div><span class="live-badge" id="camera-state">OFFLINE</span></div><div class="camera-frame"><video id="camera-video" autoplay playsinline muted></video><canvas id="camera-overlay"></canvas><div class="camera-placeholder" id="camera-placeholder"><div class="camera-orbit">⌁</div><strong>Camera Offline</strong><span>啟動攝影機，開始你的手勢旅程</span><button class="primary-button" id="start-camera" type="button">◎ 啟動攝影機</button></div><div class="camera-corners"></div></div><div class="camera-controls"><label class="toggle-row"><span><b>Skeleton overlay</b><small>顯示手部骨架</small></span><input id="skeleton-toggle" type="checkbox" checked /><i></i></label><label class="toggle-row"><span><b>Mirror view</b><small>鏡像顯示前鏡頭</small></span><input id="mirror-toggle" type="checkbox" checked /><i></i></label></div><p class="privacy-note"><span>⌁</span> 影像只在裝置端進行手部分析，不會上傳攝影機畫面。</p></aside>
-        <section class="stage-panel panel" aria-label="主要輸出畫布"><div class="stage-heading"><span class="panel-index" id="stage-index">02 / OUTPUT</span><span class="tracking-pill" id="tracking-state"><i></i> WAITING FOR HAND</span></div><div class="stage-canvas-wrap" id="virtual-stage"><canvas id="virtual-canvas"></canvas><div class="stage-grid"></div><div class="stage-message" id="stage-message"><span class="pulse-ring"></span><strong>AI Tracking Standby</strong><small>允許攝影機以啟動虛擬手掌</small></div><div class="object-orb" id="object-orb"><span></span></div></div><div class="robot-stage hidden" id="robot-stage"><div class="robot-overlay"><span>AI ROBOTICS LAB</span><b id="robot-action">HAND TRACKING STANDBY</b></div><div id="robot-canvas"></div><div class="robot-crosshair"></div></div><div class="stage-footer"><div><span class="micro-label">CURRENT MODE</span><strong id="mode-label">VIRTUAL HAND</strong></div><div class="gesture-big"><span class="micro-label">GESTURE</span><strong id="gesture-label">NONE</strong></div><div class="power-meter"><span class="micro-label">SIGNAL</span><div><i></i><i></i><i></i><i></i><i></i></div></div></div></section>
-        <aside class="panel analytics-panel"><div class="panel-heading"><div><span class="panel-index">03 / ANALYSIS</span><h2 id="analysis-title">AI 手勢辨識</h2></div><span class="spark">✦</span></div><div class="metric-grid"><div class="metric"><span>Current Gesture</span><strong id="metric-gesture">NONE</strong></div><div class="metric"><span>Confidence</span><strong id="metric-confidence">--%</strong></div><div class="metric"><span>Hand</span><strong id="metric-hand">--</strong></div><div class="metric"><span>Tracking</span><strong class="success-text" id="metric-tracking">IDLE</strong></div><div class="metric"><span>AI FPS</span><strong id="metric-fps">--</strong></div><div class="metric"><span>Pinch</span><strong id="metric-pinch">OFF</strong></div></div><div class="history-section"><div class="section-label"><span>GESTURE HISTORY</span><span>LAST 5</span></div><ol id="gesture-history"><li><time>--:--:--</time><span>Awaiting signal</span></li></ol></div><button class="developer-button" id="developer-toggle" type="button"><span>⌘</span> Developer Mode <b>OFF</b></button></aside>
+      <section class="workspace" aria-label="Gesture and robot workspace">
+        <aside class="panel camera-panel" aria-labelledby="camera-title">
+          <div class="panel-heading">
+            <div><span class="panel-index">01 / VIDEO INPUT</span><h2 id="camera-title">Camera</h2></div>
+            <span class="camera-format" id="camera-resolution">— × —</span>
+          </div>
+
+          <div class="camera-frame">
+            <video id="camera-video" autoplay playsinline muted></video>
+            <canvas id="camera-overlay" aria-hidden="true"></canvas>
+            <div class="camera-placeholder" id="camera-placeholder">
+              <span class="placeholder-mark" aria-hidden="true"><i></i><i></i><i></i></span>
+              <strong>Camera is offline</strong>
+              <span>Start the camera to begin hand tracking.</span>
+              <button class="primary-button" id="start-camera" type="button">START CAMERA</button>
+            </div>
+          </div>
+
+          <div class="camera-controls">
+            <label class="toggle-row"><span><b>Skeleton overlay</b><small>Show hand landmarks on the preview</small></span><input id="skeleton-toggle" type="checkbox" checked /><i aria-hidden="true"></i></label>
+            <label class="toggle-row"><span><b>Mirror view</b><small>Mirror the front-facing camera</small></span><input id="mirror-toggle" type="checkbox" checked /><i aria-hidden="true"></i></label>
+          </div>
+          <p class="privacy-note">Camera frames are processed on this device. Video is not uploaded or stored.</p>
+        </aside>
+
+        <section class="panel stage-panel" aria-label="Interactive workspace">
+          <div class="stage-heading">
+            <div><span class="panel-index" id="stage-index">02 / WORKSPACE</span><h2>Live output</h2></div>
+            <span class="workspace-note">HAND → CONTROL → OBJECT</span>
+          </div>
+
+          <div class="stage-canvas-wrap" id="virtual-stage">
+            <canvas id="virtual-canvas" aria-label="Virtual hand visualization"></canvas>
+            <div class="stage-grid" aria-hidden="true"></div>
+            <div class="stage-message" id="stage-message">
+              <span class="origin-mark" aria-hidden="true"></span>
+              <strong>Workspace ready</strong>
+              <small>Start the camera to see live hand landmarks.</small>
+            </div>
+            <div class="object-orb" id="object-orb" aria-label="Interactive object"><span></span></div>
+          </div>
+
+          <div class="robot-stage hidden" id="robot-stage" aria-label="Three-dimensional virtual robot arm">
+            <div id="robot-canvas"></div>
+            <div class="robot-overlay"><span>VIRTUAL ROBOT ARM</span><b id="robot-action">WAITING FOR HAND TRACKING</b></div>
+            <div class="robot-crosshair" aria-hidden="true"></div>
+          </div>
+
+          <div class="stage-footer">
+            <div><span class="micro-label">CURRENT MODE</span><strong id="mode-label">VIRTUAL HAND</strong></div>
+            <div class="gesture-big"><span class="micro-label">GESTURE</span><strong id="gesture-label">NONE</strong></div>
+            <div class="power-meter"><span class="micro-label">CONFIDENCE</span><div aria-hidden="true"><i></i><i></i><i></i><i></i><i></i></div></div>
+          </div>
+        </section>
+
+        <aside class="panel analytics-panel" aria-labelledby="analysis-title">
+          <div class="panel-heading">
+            <div><span class="panel-index">03 / CONTROL PANEL</span><h2 id="analysis-title">Hand &amp; gesture</h2></div>
+            <span class="system-mark" aria-hidden="true">GL</span>
+          </div>
+
+          <div class="metric-grid">
+            <div class="metric"><span>GESTURE</span><strong id="metric-gesture">NONE</strong></div>
+            <div class="metric"><span>CONFIDENCE</span><strong id="metric-confidence">--%</strong></div>
+            <div class="metric"><span>HAND</span><strong id="metric-hand">--</strong></div>
+            <div class="metric"><span>TRACKING</span><strong class="success-text" id="metric-tracking">IDLE</strong></div>
+            <div class="metric"><span>AI FPS</span><strong id="metric-fps">--</strong></div>
+            <div class="metric"><span>PINCH</span><strong id="metric-pinch">OFF</strong></div>
+          </div>
+
+          <div class="history-section">
+            <div class="section-label"><span>GESTURE HISTORY</span><span>LAST 5</span></div>
+            <ol id="gesture-history"><li><time>--:--:--</time><span>Awaiting input</span></li></ol>
+          </div>
+
+          <button class="developer-button" id="developer-toggle" type="button"><span aria-hidden="true">{ }</span> Landmark data <b>OFF</b></button>
+
+          <section class="robot-controls hidden" id="robot-controls" aria-label="Robot arm controls">
+            <div class="robot-mode-tabs">
+              <span class="panel-index">ROBOT ARM</span>
+              <button class="robot-mode active" data-robot-mode="free" type="button">FREE</button>
+              <button class="robot-mode" data-robot-mode="precise" type="button">PRECISE</button>
+              <button class="robot-mode" data-robot-mode="demo" type="button">DEMO</button>
+            </div>
+
+            <div class="robot-readouts">
+              <div><span>ARM STATUS</span><b id="arm-status">ACTIVE</b></div>
+              <div><span>BASE</span><b id="arm-base">0°</b></div>
+              <div><span>SHOULDER</span><b id="arm-shoulder">15°</b></div>
+              <div><span>ELBOW</span><b id="arm-elbow">45°</b></div>
+              <div><span>WRIST</span><b id="arm-wrist">0°</b></div>
+              <div><span>GRIPPER</span><b id="arm-gripper">OPEN</b></div>
+            </div>
+
+            <div class="robot-actions">
+              <button class="control-button" id="home-button" type="button">HOME</button>
+              <button class="control-button demo-button" id="run-demo" type="button">RUN DEMO</button>
+              <button class="control-button stop-button" id="stop-button" type="button">EMERGENCY STOP</button>
+              <button class="control-button" id="resume-button" type="button">RESUME</button>
+            </div>
+
+            <div class="slider-row">
+              <label for="sensitivity">SENSITIVITY <output id="sensitivity-value">50%</output><input id="sensitivity" type="range" min="0" max="100" value="50" /></label>
+              <label for="smoothness">DAMPING <output id="smoothness-value">70%</output><input id="smoothness" type="range" min="0" max="100" value="70" /></label>
+              <label for="dead-zone">DEAD ZONE <output id="dead-zone-value">5%</output><input id="dead-zone" type="range" min="0" max="20" value="5" /></label>
+            </div>
+
+            <div class="coordinate-readout">
+              <span>HAND POSITION</span>
+              <b>X <i id="arm-x">0.50</i></b><b>Y <i id="arm-y">0.63</i></b><b>Z <i id="arm-z">0.41</i></b>
+            </div>
+            <label class="performance-chip"><input id="performance-toggle" type="checkbox" /> PERFORMANCE MODE</label>
+          </section>
+        </aside>
       </section>
-      <section class="robot-controls hidden" id="robot-controls"><div class="robot-mode-tabs"><span class="panel-index">ROBOT ARM MODE</span><button class="robot-mode active" data-robot-mode="free" type="button">FREE CONTROL</button><button class="robot-mode" data-robot-mode="precise" type="button">PRECISE MODE</button><button class="robot-mode" data-robot-mode="demo" type="button">DEMO MODE</button></div><div class="robot-readouts"><div><span>ARM STATUS</span><b id="arm-status">ACTIVE</b></div><div><span>BASE</span><b id="arm-base">0°</b></div><div><span>SHOULDER</span><b id="arm-shoulder">15°</b></div><div><span>ELBOW</span><b id="arm-elbow">45°</b></div><div><span>WRIST</span><b id="arm-wrist">0°</b></div><div><span>GRIPPER</span><b id="arm-gripper">OPEN</b></div><div><span>CONTROL</span><b>HAND TRACKING</b></div><div><span>AI / RENDER</span><b id="arm-fps">-- / -- FPS</b></div></div><div class="robot-actions"><button class="control-button" id="home-button" type="button">⌂ HOME</button><button class="control-button demo-button" id="run-demo" type="button">▶ RUN ROBOT DEMO</button><button class="control-button stop-button" id="stop-button" type="button">■ STOP</button><button class="control-button" id="resume-button" type="button">↻ RESUME</button></div><div class="slider-row"><label>SENSITIVITY <output id="sensitivity-value">50%</output><input id="sensitivity" type="range" min="0" max="100" value="50" /></label><label>SMOOTHNESS <output id="smoothness-value">70%</output><input id="smoothness" type="range" min="0" max="100" value="70" /></label><label>DEAD ZONE <output id="dead-zone-value">5%</output><input id="dead-zone" type="range" min="0" max="20" value="5" /></label></div><div class="coordinate-readout"><span>VIRTUAL ARM COORDINATES</span><b>X <i id="arm-x">0.50</i></b><b>Y <i id="arm-y">0.63</i></b><b>Z <i id="arm-z">0.41</i></b><span class="performance-chip"><input id="performance-toggle" type="checkbox" /> PERFORMANCE MODE</span></div></section>
-      <section class="developer-panel panel hidden" id="developer-panel"><div class="panel-heading"><div><span class="panel-index">DEBUG / LANDMARKS</span><h2>Live Landmark Data</h2></div><span class="data-stream">STREAMING</span></div><div class="landmark-grid" id="landmark-grid"><p>啟動攝影機後顯示 21 個 hand landmarks。</p></div></section>
-      <div class="bottom-strip"><span><i class="status-dot"></i> LOCAL PROCESSING</span><span id="bottom-status">Camera Offline</span><span>AI <b id="bottom-ai-fps">--</b> FPS / RENDER <b id="bottom-render-fps">--</b> FPS</span><span>MEDIAPIPE + THREE.JS</span></div>
+
+      <section class="developer-panel panel hidden" id="developer-panel" aria-label="Live hand landmark data">
+        <div class="panel-heading"><div><span class="panel-index">DEBUG / LANDMARKS</span><h2>Live landmark data</h2></div><span class="data-stream">STREAMING</span></div>
+        <div class="landmark-grid" id="landmark-grid"><p>Start the camera to view all 21 hand landmarks.</p></div>
+      </section>
+
+      <footer class="bottom-strip">
+        <span><i class="status-dot" aria-hidden="true"></i> LOCAL PROCESSING</span>
+        <span id="bottom-status">Camera offline</span>
+        <span>AI <b id="bottom-ai-fps">--</b> FPS / RENDER <b id="bottom-render-fps">--</b> FPS</span>
+        <span>MEDIAPIPE + THREE.JS</span>
+      </footer>
     </main>
-    <dialog id="robot-training"><button class="dialog-close" id="close-training" type="button">×</button><span class="panel-index">ROBOT ARM TRAINING</span><h2>手勢就是遙控器</h2><ol class="training-steps"><li><b>STEP 1</b><span>Move your hand<br />控制機械臂位置</span></li><li><b>STEP 2</b><span>Rotate your palm<br />控制手腕</span></li><li><b>STEP 3</b><span>Pinch<br />抓取物件</span></li><li><b>STEP 4</b><span>Release<br />放下物件</span></li></ol><button class="primary-button" id="start-training" type="button">START TRAINING</button></dialog>
-    <dialog id="help-dialog"><button class="dialog-close" id="close-help" type="button">×</button><span class="panel-index">QUICK START</span><h2>讓手成為控制器</h2><p>允許攝影機後，將手放在畫面中。張開手掌、握拳、比讚或捏合拇指與食指，觀察虛擬手掌與機械臂即時反應。</p><button class="primary-button" id="dialog-start" type="button">知道了</button></dialog><div class="toast" id="toast" role="status" aria-live="polite"></div>
-    <script type="module" src="/src/main.js"></script>
+
+    <dialog id="robot-training">
+      <button class="dialog-close" id="close-training" type="button" aria-label="Close guide">×</button>
+      <span class="panel-index">ROBOT ARM / QUICK GUIDE</span>
+      <h2>Control the arm with your hand</h2>
+      <ol class="training-steps">
+        <li><b>01</b><span>Move your hand<br />Set the arm position</span></li>
+        <li><b>02</b><span>Rotate your palm<br />Set the wrist angle</span></li>
+        <li><b>03</b><span>Pinch<br />Close the gripper</span></li>
+        <li><b>04</b><span>Release<br />Drop the object</span></li>
+      </ol>
+      <button class="primary-button" id="start-training" type="button">GOT IT</button>
+    </dialog>
+
+    <dialog id="help-dialog">
+      <button class="dialog-close" id="close-help" type="button" aria-label="Close guide">×</button>
+      <span class="panel-index">QUICK START</span>
+      <h2>Use your hand as a controller</h2>
+      <p>Start the camera and place your hand in view. Open your palm, make a fist, point, or pinch your thumb and index finger to explore the live visualization and virtual robot arm.</p>
+      <button class="primary-button" id="dialog-start" type="button">CLOSE GUIDE</button>
+    </dialog>
+
+    <div class="toast" id="toast" role="status" aria-live="polite"></div>
+    <script type="module" src="./src/main.js"></script>
   </body>
 </html>

@@ -1,8 +1,8 @@
 {
-  "name": "ai-gesture-virtual-hand",
+  "name": "hand2robot",
   "version": "2.1.0",
   "private": true,
-  "description": "A browser-based AI gesture interface powered by MediaPipe Hand Landmarker.",
+  "description": "A browser-based hand tracking and virtual robotics workspace powered by MediaPipe and Three.js.",
   "type": "module",
   "scripts": {
     "dev": "vite",

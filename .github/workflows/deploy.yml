@@ -1,4 +1,4 @@
-name: Deploy AI Gesture Virtual Hand
+name: Deploy Hand2Robot to GitHub Pages
 
 on:
   push:

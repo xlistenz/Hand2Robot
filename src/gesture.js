@@ -29,8 +29,8 @@ export class GestureStabilizer {
   }
 }
 
-export function getGesture(result) {
-  const category = result?.gestures?.[0]?.[0];
+export function getGesture(result, handIndex = 0) {
+  const category = result?.gestures?.[handIndex]?.[0];
   const rawName = category?.categoryName || "None";
   return {
     rawName,
@@ -39,8 +39,8 @@ export function getGesture(result) {
   };
 }
 
-export function getHandedness(result) {
-  return result?.handednesses?.[0]?.[0]?.displayName || result?.handednesses?.[0]?.[0]?.categoryName || "--";
+export function getHandedness(result, handIndex = 0) {
+  return result?.handednesses?.[handIndex]?.[0]?.displayName || result?.handednesses?.[handIndex]?.[0]?.categoryName || "--";
 }
 
 export function getPinch(landmarks) {

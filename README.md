@@ -1,118 +1,87 @@
-# AI Gesture Virtual Hand
+# Hand2Robot — Gesture Lab
 
-> 用你的手，控制數位世界。
+**A browser-based hand-tracking and virtual robotics workspace.** Use your webcam to explore hand landmarks, gestures, a virtual hand, and a simulated robot arm.
 
-AI Gesture Virtual Hand 是一個可直接在瀏覽器執行的 AI Computer Vision 互動網站。它使用裝置攝影機擷取即時影像，透過 MediaPipe Tasks Vision 的 Hand Landmarker 與 Gesture Recognizer 分析手部 21 個 landmarks 和常見手勢，再把結果同步呈現為科技感虛擬手掌與可抓取的漂浮科技球。
+[Traditional Chinese](README.zh-TW.md) · [Live demo](https://xlistenz.github.io/Hand2Robot/) · [Source code](https://github.com/xlistenz/Hand2Robot)
 
-## Demo
-
-- Live Demo：<https://xlistenz.github.io/AI_test/>
-- GitHub：<https://github.com/xlistenz/AI_test>
-
-目前 repository 名稱為 `AI_test`，因此 GitHub Pages 使用 `/AI_test/` 路徑。
+> [!IMPORTANT]
+> The robot arm is a Three.js simulation. This project does not control a physical robot or motor. Camera frames are processed in the browser and are not uploaded or stored by this project.
 
 ## Features
 
-- 瀏覽器端即時攝影機與 AI 手部追蹤
-- 完整 21 個 hand landmarks、手部骨架 overlay 與 FPS
-- 支援最多 2 隻手的 MediaPipe Hand Landmarker
-- Gesture Recognizer：OPEN PALM、FIST、POINTING UP、THUMBS UP、VICTORY、I LOVE YOU
-- 虛擬科技手掌：發光骨架、關節節點、網格、粒子與光暈
-- 依照真實手部位置、深度與姿態同步移動、縮放與旋轉視覺化
-- 食指控制科技球，拇指與食指捏合時抓取、拖曳與放開
-- Virtual Hand、Object Control、Gesture Lab 三種模式
-- Gesture history、Confidence、Hand、Tracking、FPS、Pinch 狀態面板
-- Developer Mode 顯示全部 21 個 landmark 座標
-- 響應式桌面、筆電與 375px 以上手機版面
-- GitHub Actions 自動建置並部署 GitHub Pages
+- Live webcam input with MediaPipe Hand Landmarker and Gesture Recognizer.
+- Detection of 21 landmarks on up to two hands, with a hand-skeleton overlay and mirror-view option.
+- Gesture classification for Open Palm, Fist, Pointing Up, Thumbs Up, Victory, and I Love You.
+- Virtual Hand view with depth-responsive scale and pinch feedback.
+- Robot Arm view with an industrial-style 3D work area, X/Y/Z axes, coordinate origin, and movable objects.
+- Hand-driven base, shoulder, elbow, and wrist controls; pinch opens and closes the gripper.
+- Object interaction with a cube, sphere, cylinder, ring, and box.
+- Free, Precise, and Demo robot modes, plus Home, Emergency Stop, and Resume controls.
+- Sensitivity, damping, and dead-zone settings, plus a Performance Mode that lowers rendering resolution to free GPU headroom for tracking.
+- Objects view, Gesture Lab, Settings, gesture history, confidence and handedness readouts, AI/render FPS, and live landmark coordinates.
+- Responsive desktop and mobile layouts.
 
-## Robot Arm Mode
+## Workspace modes
 
-Robot Arm Mode 是完全在瀏覽器內執行的 Virtual Robotic Arm，不使用 Arduino、ESP32 或任何真實馬達。它直接共用目前的 MediaPipe hand landmarks，將右手動作映射到 Three.js 模擬工業機械臂。
+| Mode | What it shows |
+| --- | --- |
+| Virtual Hand | A live hand-landmark visualization with pinch feedback. |
+| Robot Arm | A simulated arm controlled by hand position, palm tilt, hand scale, and pinch. Includes joint values and robot controls. |
+| Objects | A draggable screen-space object controlled by the index fingertip and pinch. |
+| Gesture Lab | Gesture confidence, tracking state, and recent gesture history. |
+| Settings | Camera overlay and mirror options; robot performance controls are available in Robot Arm mode. |
 
-- **Position Control**：掌心左右控制 Base Rotation，上下控制 Shoulder，手掌大小控制前伸與收回
-- **Rotation Control**：Index MCP、Pinky MCP 與 Wrist 推算掌面傾斜，控制 Wrist
-- **Gripper Control**：Thumb Tip 與 Index Tip 距離小於門檻時判定 PINCH，平滑開合夾爪
-- **Pinch Detection**：夾爪接近 Cube、Sphere、Cylinder、Ring 或 Small Box 時進行 collision detection 與吸附
-- **Object Interaction**：放開 PINCH 後物件留在目前位置並受重力式回落效果呈現
-- **Demo Mode**：自動完成左轉、抬臂、前伸、夾取、移動、放下與回 Home
-- **Home / Stop / Resume**：可隨時回到 Base 0°、Shoulder 15°、Elbow 45° 的安全位置或停止動畫
+## Robot controls
 
-控制資料流：
+Move the right hand left or right to rotate the base, move it up or down to raise or lower the arm, and change its apparent size to extend or retract the elbow. Palm tilt adjusts the wrist. Pinch the thumb and index finger to close the gripper and release to open it.
 
-```text
-Camera
-    ↓
-MediaPipe Hand Tracking
-    ↓
-21 Hand Landmarks + Gesture Recognition
-    ↓
-Robot Control + Pinch Collision
-    ↓
-Three.js Virtual Robot Arm
-```
+Precise mode reduces hand-control sensitivity. Demo mode runs a repeating arm sequence. Home returns the arm to its preset position, Emergency Stop halts motion, and Resume re-enables hand control. The simulated gripper can pick up nearby objects and move them; released objects stay where they are dropped.
 
-## Technology
+## Gestures
 
-- Vite
-- 原生 JavaScript ES Modules
-- HTML5、CSS3、Canvas 2D
-- Three.js WebGL
-- `@mediapipe/tasks-vision`
-- Web Camera API / `getUserMedia`
-- GitHub Actions / GitHub Pages
+| Gesture | Response |
+| --- | --- |
+| Open Palm | Recognized as an open hand. |
+| Fist | Recognized as a closed hand. |
+| Pointing Up | In Objects mode, the index fingertip moves the object cursor. |
+| Thumbs Up | Displayed in the gesture readouts and history. |
+| Victory | Displayed in the gesture readouts and history. |
+| I Love You | Displayed when recognized by the MediaPipe model. |
+| Pinch | Closes the robot gripper or grabs the screen-space object, depending on the active mode. |
 
-## How It Works
+## Run locally
 
-1. 使用者按下「啟動攝影機」，瀏覽器請求 Camera Permission。
-2. `HandTracking` 載入 MediaPipe WASM、Hand Landmarker 與 Gesture Recognizer。
-3. `requestAnimationFrame` 迴圈只在新 video frame 可用時執行推論。
-4. `gesture.js` 將分類結果轉成 UI 手勢名稱，並以 thumb tip 與 index tip 距離判斷 PINCH。
-5. `virtualHand.js` 使用 Canvas 渲染 21 點骨架、掌面網格、粒子與發光效果。
-6. `ui.js` 更新面板、歷史紀錄、模式、Developer Mode 與錯誤訊息。
-
-## Installation
-
-需求：Node.js 18 或更新版本、可使用攝影機的現代瀏覽器。推薦 Chrome 或 Edge。
+Requirements: Node.js 18 or newer, npm, a webcam, and a modern browser. Chrome and Edge are recommended. The development server uses localhost, which browsers treat as a secure context for camera access.
 
 ```bash
-npm install
+git clone https://github.com/xlistenz/Hand2Robot.git
+cd Hand2Robot
+npm ci
 npm run dev
 ```
 
-開發伺服器啟動後，使用終端顯示的 localhost URL 開啟網站，允許攝影機權限即可使用。
+Open the localhost URL printed by Vite and allow camera access when prompted. MediaPipe's WASM runtime and model files are fetched from their published CDN locations when tracking starts, so an internet connection is required.
 
-Production build：
+Create and preview a production build:
 
 ```bash
 npm run build
-```
-
-Preview production build：
-
-```bash
 npm run preview
 ```
 
-## Gesture Controls
+## GitHub Pages
 
-| Gesture | 效果 |
-| --- | --- |
-| OPEN PALM | 虛擬手掌張開並追蹤手掌動作 |
-| FIST | 顯示握拳狀態 |
-| POINTING UP | 食指伸出，可控制科技球游標 |
-| THUMBS UP | 顯示 READY 狀態手勢 |
-| VICTORY | 顯示勝利手勢 |
-| I LOVE YOU | MediaPipe 模型支援時顯示此手勢 |
-| PINCH | 拇指與食指靠近，抓取或拖曳科技球 |
+Pushing to `main` runs the GitHub Actions workflow in `.github/workflows/deploy.yml`. It installs locked dependencies, builds the Vite site, and deploys the `dist/` directory to GitHub Pages. The Vite configuration reads the repository name from the Actions environment, so the same build works at the project's `/Hand2Robot/` Pages path.
 
-## Privacy
+Live site: <https://xlistenz.github.io/Hand2Robot/>
 
-攝影機畫面只在使用者裝置端進行手部追蹤分析，本專案不建立後端、不儲存攝影機影像，也不會上傳影像。專案沒有 Google Analytics、廣告、追蹤器或使用者資料收集程式。
+## Privacy and performance
 
-第一次使用時，瀏覽器會要求攝影機權限。拒絕權限、找不到攝影機、攝影機被其他程式占用、瀏覽器不支援 Camera API 或 MediaPipe 載入失敗時，頁面會顯示可理解的中文錯誤提示。
+Camera frames are read by the browser's `getUserMedia` API and passed directly to MediaPipe. This repository has no application backend, analytics, advertising, or camera-upload code. The browser does request the MediaPipe runtime and model files from the configured public CDNs.
 
-## Project Structure
+Hand inference is scheduled for up to 30 FPS on new video frames. Three.js rendering runs separately, and the 3D scene is loaded only when Robot Arm mode is selected. Actual frame rates depend on the device, browser, camera, and graphics hardware. Performance Mode reduces canvas and WebGL pixel ratios without lowering the hand-inference target.
+
+## Project structure
 
 ```text
 .
@@ -121,53 +90,21 @@ npm run preview
 ├── package-lock.json
 ├── vite.config.js
 ├── README.md
+├── README.zh-TW.md
 ├── LICENSE
-├── .gitignore
-├── src/
-│   ├── main.js          # 應用程式入口與 animation loop
-│   ├── handTracking.js  # Camera、WASM 與 MediaPipe 推論
-│   ├── gesture.js       # 手勢、Pinch 與控制點計算
-│   ├── virtualHand.js   # Canvas 虛擬手掌與攝影機骨架
-│   ├── ui.js            # DOM 面板與互動狀態
-│   └── style.css        # Cyber UI、HUD 與響應式樣式
-├── public/
-│   └── models/          # 可放置自有模型的目錄，目前使用官方遠端模型
-└── .github/workflows/
-    └── deploy.yml       # GitHub Pages CI/CD
-```
-
-## GitHub Pages Deployment
-
-每次 push 到 `main` 時，GitHub Actions 會：
-
-1. Checkout repository
-2. 使用 Node.js 20
-3. 執行 `npm ci`
-4. 執行 `npm run build`
-5. 將 `dist` 上傳為 Pages artifact
-6. 發布到 GitHub Pages
-
-`vite.config.js` 會讀取 GitHub Actions 提供的 `GITHUB_REPOSITORY`，自動產生 repository base path。程式碼中沒有把 repository 名稱寫死；本機開發使用 `/`，GitHub Pages 會使用對應 repository 的子路徑。
-
-若使用 repository 名稱 `ai-gesture-virtual-hand`，預期 base 為：
-
-```js
-base: "/ai-gesture-virtual-hand/"
-```
-
-請在 repository Settings → Pages 將 Source 設為 GitHub Actions。
-
-效能預設值：Camera 640×480、AI inference 約 30 FPS、Render 使用 requestAnimationFrame 並以實際 FPS 顯示。MediaPipe inference 與 Three.js render 是兩個獨立 loop；Performance Mode 會降低視覺效果並維持較穩定的推理頻率。
-
-## Git Commands
-
-```bash
-git init
-git add .
-git commit -m "Build AI Gesture Virtual Hand"
-git branch -M main
-git remote add origin https://github.com/YOUR_USERNAME/ai-gesture-virtual-hand.git
-git push -u origin main
+├── .github/workflows/deploy.yml
+├── public/models/             # Optional location for locally hosted models
+└── src/
+    ├── main.js                # Application setup and render loop
+    ├── handTracking.js        # Camera, MediaPipe models, and inference loop
+    ├── gesture.js             # Gesture labels, pinch detection, and control points
+    ├── virtualHand.js         # Canvas hand and camera-landmark rendering
+    ├── robotArm.js            # Three.js scene and virtual arm
+    ├── robotControl.js        # Hand-to-joint mapping and demo control
+    ├── objectInteraction.js   # Simulated object pickup and release
+    ├── performance.js         # AI and render frame-rate measurements
+    ├── ui.js                  # Workspace controls and live readouts
+    └── style.css              # Responsive engineering-workspace interface
 ```
 
 ## License
