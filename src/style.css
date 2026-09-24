@@ -64,8 +64,9 @@ button:focus-visible, input:focus-visible, a:focus-visible { outline: 2px solid 
 
 .camera-frame { position: relative; width: 100%; aspect-ratio: 4 / 3; min-height: 180px; overflow: hidden; border: 1px solid var(--line-strong); background: #d9d7d0; }
 .camera-frame video, .camera-frame canvas { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+.camera-frame video { z-index: 1; }
 .camera-frame video.mirrored { transform: scaleX(-1); }
-.camera-frame canvas { pointer-events: none; }
+.camera-frame canvas { z-index: 2; pointer-events: none; }
 .camera-placeholder { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; padding: 16px; background: var(--surface-alt); text-align: center; }
 .camera-placeholder.hidden { display: none; }
 .camera-placeholder strong { margin-top: 5px; font-size: 12px; font-weight: 600; }

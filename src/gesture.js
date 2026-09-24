@@ -65,7 +65,7 @@ export function getPalmPose(landmarks) {
   const middle = landmarks[9];
   const roll = Math.atan2(pinky.y - index.y, pinky.x - index.x);
   const pitch = Math.atan2(middle.z - wrist.z, Math.hypot(middle.x - wrist.x, middle.y - wrist.y));
-  return { x: 1 - center.x, y: center.y, depth: span, roll, pitch };
+  return { x: 1 - center.x, y: center.y, z: center.z, depth: span, roll, pitch };
 }
 
 export function getControlPoint(landmarks) {

@@ -1,5 +1,6 @@
 import * as THREE from "three";
 import { ObjectInteraction } from "./objectInteraction.js";
+import { ARM_GEOMETRY } from "./robotKinematics.js";
 
 const accent = 0xd96c35;
 const darkMetal = 0x292a28;
@@ -23,6 +24,7 @@ export class RobotArm {
     this.renderer.outputColorSpace = THREE.SRGBColorSpace;
     container.appendChild(this.renderer.domElement);
     this.root = new THREE.Group();
+    this.root.position.y = ARM_GEOMETRY.rootHeight;
     this.scene.add(this.root);
     this.lastUpdateTime = performance.now();
     this.createLights();
@@ -308,10 +310,10 @@ export class RobotArm {
     this.camera.updateProjectionMatrix();
   }
 
-  updateObjectHand(hand, now = performance.now()) {
+  updateObjectHand(hand, now = performance.now(), hands = [hand], showSkeleton = true) {
     const delta = Math.max(0, Math.min(0.1, (now - this.lastUpdateTime) / 1000));
     this.lastUpdateTime = now;
-    return this.objects.update(hand, delta);
+    return this.objects.update(hand, delta, hands, showSkeleton);
   }
 
   getGripperPosition() {

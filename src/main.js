@@ -44,7 +44,12 @@ function handleResult({ result }) {
     const gesture = gestureStabilizers.get(handedness).update(rawGesture);
     const pinch = getPinch(landmarks, pinchStates.get(handedness) || false);
     pinchStates.set(handedness, pinch.active);
-    return { landmarks, handedness, gesture, pinch, pose: getPalmPose(landmarks) };
+    const pose = getPalmPose(landmarks);
+    const pinchTip = landmarks[4] && landmarks[8]
+      ? { x: 1 - (landmarks[4].x + landmarks[8].x) / 2, y: (landmarks[4].y + landmarks[8].y) / 2, z: (landmarks[4].z + landmarks[8].z) / 2 }
+      : null;
+    const indexTip = landmarks[8] ? { x: 1 - landmarks[8].x, y: landmarks[8].y, z: landmarks[8].z } : null;
+    return { landmarks, handedness, gesture, pinch, pose, pinchTip, indexTip };
   });
   const rightHand = latestHands.find((hand) => hand.handedness === "Right");
   latestObjectHand = latestHands.find((hand) => hand.handedness === "Right" && hand.pinch.active)
@@ -80,7 +85,7 @@ function render(now) {
           lastRobotUiUpdate = now;
         }
       } else {
-        const objectState = robotArm.updateObjectHand(latestObjectHand, now);
+        const objectState = robotArm.updateObjectHand(latestObjectHand, now, latestHands, ui.getOptions().showSkeleton);
         ui.updateObjectState(objectState, Boolean(latestObjectHand));
       }
       robotArm.render();

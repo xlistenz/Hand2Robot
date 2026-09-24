@@ -14,8 +14,9 @@
 - Gesture classification for Open Palm, Fist, Pointing Up, Thumbs Up, Victory, and I Love You.
 - Virtual Hand view with depth-responsive scale and pinch feedback.
 - Robot Arm view with a 3D arm inspired by the SO-ARM101 joint layout, an industrial-style work area, X/Y/Z axes, and movable objects.
-- Right-hand motion controls the base, arm height and reach, and wrist pitch and roll; pinch with the left hand to close the gripper. With one hand, its pinch controls the gripper.
-- Direct 3D object interaction with a cube, sphere, cylinder, ring, and box: pinch near an object to pick it up, move it through the workspace, and rotate it by turning the wrist.
+- Cartesian gripper control: right-hand motion sets the arm's base direction, height, and reach through inverse kinematics; wrist motion controls pitch and roll. Pinch with the left hand to close the gripper. With one hand, its pinch controls the gripper.
+- Direct 3D object interaction with a cube, sphere, cylinder, ring, and box. The camera fingertip is shown as a colored 3D hand skeleton and target marker; pinch to move an object and turn the wrist to rotate it.
+- Simulated object constraints keep objects on the tabletop, inside its edge, and apart from one another during hand and robot-gripper movement.
 - Free, Precise, and Demo robot modes, plus Home, Emergency Stop, and Resume controls.
 - Sensitivity, damping, and dead-zone settings, plus a Performance Mode that lowers rendering resolution to free GPU headroom for tracking.
 - Objects view, Gesture Lab, Settings, gesture history, confidence and handedness readouts, AI/render FPS, and live landmark coordinates.
@@ -26,18 +27,18 @@
 | Mode | What it shows |
 | --- | --- |
 | Virtual Hand | A live hand-landmark visualization with pinch feedback. |
-| Robot Arm | An SO-ARM101-inspired virtual arm controlled by both hands. Includes live joint values and robot controls. |
-| Objects | A 3D workbench where a hand pinch picks up, moves, and wrist-rotates objects. |
+| Robot Arm | An SO-ARM101-inspired virtual arm whose gripper follows a hand-mapped 3D target. Includes live joint values and robot controls. |
+| Objects | A 3D workbench with a live hand skeleton, fingertip target, pinch-to-move, and wrist rotation. |
 | Gesture Lab | Gesture confidence, tracking state, and recent gesture history. |
 | Settings | Camera overlay and mirror options; robot performance controls are available in Robot Arm mode. |
 
 ## Robot controls
 
-Move the right hand left or right to rotate the base, move it vertically to raise or lower the arm, and move it closer to or farther from the camera to adjust its reach. Turn the wrist to control wrist pitch and roll. Pinch with the left hand to close the gripper; with only one tracked hand, that hand controls both the arm and gripper.
+The first tracked hand pose becomes the neutral point, so starting tracking does not jump the arm. Move the right hand left or right to rotate the base, move it vertically to raise or lower the gripper, and move it closer to or farther from the camera to adjust reach. Turn the wrist to control tool pitch and roll. Pinch with the left hand to close the gripper; with only one tracked hand, that hand controls both the arm and gripper.
 
 The virtual arm is a Three.js interpretation of the SO-ARM101-style servo and joint arrangement. See [TheRobotStudio SO-ARM100/SO-ARM101 project](https://github.com/TheRobotStudio/SO-ARM100) for the physical design reference. This project does not include the official CAD files or control a physical arm.
 
-Precise mode reduces hand-control sensitivity. Demo mode runs a repeating arm sequence. Home returns the arm to its preset position, Emergency Stop halts motion, and Resume re-enables hand control. The simulated gripper can pick up nearby objects and move them; released objects stay where they are dropped.
+The shoulder and elbow use inverse kinematics so the gripper follows a reachable 3D target; targets outside the joint range are projected to the nearest reachable position. Precise mode reduces hand-control sensitivity. Demo mode runs a repeating arm sequence. Home returns the arm to a raised, reachable pose, Emergency Stop halts motion, and Resume re-enables hand control. The simulated gripper picks up objects only when it reaches them. Tabletop collisions use approximate bounding volumes, not a full rigid-body physics engine.
 
 ## Gestures
 
@@ -61,6 +62,8 @@ cd Hand2Robot
 npm ci
 npm run dev
 ```
+
+Run interaction and kinematics checks with `npm test`; verify the production bundle with `npm run build`.
 
 Open the localhost URL printed by Vite and allow camera access when prompted. MediaPipe's WASM runtime and model files are fetched from their published CDN locations when tracking starts, so an internet connection is required.
 
@@ -96,17 +99,21 @@ Hand inference is scheduled for up to 30 FPS on new video frames. Three.js rende
 ├── LICENSE
 ├── .github/workflows/deploy.yml
 ├── public/models/             # Optional location for locally hosted models
-└── src/
+├── src/
     ├── main.js                # Application setup and render loop
     ├── handTracking.js        # Camera, MediaPipe models, and inference loop
     ├── gesture.js             # Gesture labels, pinch detection, and control points
     ├── virtualHand.js         # Canvas hand and camera-landmark rendering
     ├── robotArm.js            # Three.js scene and virtual arm
-    ├── robotControl.js        # Hand-to-joint mapping and demo control
-    ├── objectInteraction.js   # Simulated object pickup and release
+    ├── robotControl.js        # Hand-to-Cartesian-target mapping and demo control
+    ├── robotKinematics.js     # Forward and inverse arm kinematics
+    ├── objectInteraction.js   # 3D hand skeleton, grasping, and collision bounds
     ├── performance.js         # AI and render frame-rate measurements
     ├── ui.js                  # Workspace controls and live readouts
     └── style.css              # Responsive engineering-workspace interface
+└── tests/
+    ├── robot-control.test.js  # Kinematics and hand-to-arm control checks
+    └── object-interaction.test.js # Grasping and tabletop constraint checks
 ```
 
 ## License

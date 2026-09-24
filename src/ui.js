@@ -104,8 +104,8 @@ export function createUI() {
     refs.robotStage.classList.toggle("hidden", !showThreeDimensionalStage);
     refs.robotControls.classList.toggle("hidden", mode !== "robot");
     refs.robotViewTitle.textContent = mode === "object" ? "3D OBJECT CONTROL" : "SO-ARM101 INSPIRED VIRTUAL ARM";
-    if (mode === "object") refs.robotAction.textContent = "PINCH WITH EITHER HAND · MOVE · TURN WRIST";
-    else if (mode === "robot") refs.robotAction.textContent = "RIGHT HAND MOVES THE ARM · LEFT HAND PINCHES THE GRIPPER";
+    if (mode === "object") refs.robotAction.textContent = "PINCH WITH EITHER HAND · MOVE · TURN WRIST · SKELETON IN 3D";
+    else if (mode === "robot") refs.robotAction.textContent = "MOVE RIGHT HAND TO STEER THE GRIPPER · PINCH TO GRAB";
     document.querySelectorAll(".menu-button").forEach((button) => {
       const active = button.dataset.appMode === mode;
       button.classList.toggle("active", active);
@@ -118,7 +118,7 @@ export function createUI() {
     refs.armStatus.className = state.stopped ? "danger-text" : state.mode === "demo" || tracking ? "success-text" : "";
     refs.armBase.textContent = `${Math.round(state.base * 57.3)}°`;
     refs.armShoulder.textContent = `${Math.round(state.shoulder * 57.3)}°`;
-    refs.armElbow.textContent = `${Math.round((state.elbow - 0.78) * 57.3 + 45)}°`;
+    refs.armElbow.textContent = `${Math.round((0.8 - state.elbow) * 57.3)}°`;
     refs.armWrist.textContent = `${Math.round(state.wrist * 57.3)}°`;
     refs.armWristRoll.textContent = `${Math.round((state.wristRoll || 0) * 57.3)}°`;
     refs.armGripper.textContent = state.gripper > 0.55 ? "CLOSED" : "OPEN";
