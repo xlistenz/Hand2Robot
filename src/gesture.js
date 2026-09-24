@@ -43,12 +43,29 @@ export function getHandedness(result, handIndex = 0) {
   return result?.handednesses?.[handIndex]?.[0]?.displayName || result?.handednesses?.[handIndex]?.[0]?.categoryName || "--";
 }
 
-export function getPinch(landmarks) {
-  if (!landmarks?.[4] || !landmarks?.[8]) return { active: false, distance: 1 };
+export function getPinch(landmarks, previous = false) {
+  if (!landmarks?.[4] || !landmarks?.[8] || !landmarks?.[5] || !landmarks?.[17]) return { active: false, distance: 1, ratio: 1 };
   const thumb = landmarks[4];
   const index = landmarks[8];
-  const distance = Math.hypot(thumb.x - index.x, thumb.y - index.y, (thumb.z - index.z) * 0.5);
-  return { active: distance < 0.075, distance };
+  const distance = Math.hypot(thumb.x - index.x, thumb.y - index.y);
+  const palmWidth = Math.max(0.04, Math.hypot(landmarks[5].x - landmarks[17].x, landmarks[5].y - landmarks[17].y));
+  const ratio = distance / palmWidth;
+  const threshold = previous ? 0.34 : 0.27;
+  return { active: ratio < threshold, distance, ratio };
+}
+
+export function getPalmPose(landmarks) {
+  if (!landmarks?.[0] || !landmarks?.[5] || !landmarks?.[9] || !landmarks?.[13] || !landmarks?.[17]) return null;
+  const palm = [landmarks[0], landmarks[5], landmarks[9], landmarks[13], landmarks[17]];
+  const center = palm.reduce((sum, point) => ({ x: sum.x + point.x / palm.length, y: sum.y + point.y / palm.length, z: sum.z + point.z / palm.length }), { x: 0, y: 0, z: 0 });
+  const span = Math.hypot(landmarks[5].x - landmarks[17].x, landmarks[5].y - landmarks[17].y);
+  const index = landmarks[5];
+  const pinky = landmarks[17];
+  const wrist = landmarks[0];
+  const middle = landmarks[9];
+  const roll = Math.atan2(pinky.y - index.y, pinky.x - index.x);
+  const pitch = Math.atan2(middle.z - wrist.z, Math.hypot(middle.x - wrist.x, middle.y - wrist.y));
+  return { x: 1 - center.x, y: center.y, depth: span, roll, pitch };
 }
 
 export function getControlPoint(landmarks) {

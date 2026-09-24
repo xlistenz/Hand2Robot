@@ -1,5 +1,5 @@
 import "./style.css";
-import { getControlPoint, getGesture, getHandedness, getPinch, GestureStabilizer } from "./gesture.js";
+import { getGesture, getHandedness, getPalmPose, getPinch, GestureStabilizer } from "./gesture.js";
 import { VirtualHand, drawCameraLandmarks } from "./virtualHand.js";
 import { RobotController } from "./robotControl.js";
 import { PerformanceMonitor } from "./performance.js";
@@ -9,15 +9,17 @@ const ui = createUI();
 const virtualHand = new VirtualHand(document.querySelector("#virtual-canvas"));
 const robotController = new RobotController();
 const performanceMonitor = new PerformanceMonitor();
-const gestureStabilizer = new GestureStabilizer({ threshold: 0.65, samples: 4 });
+const gestureStabilizers = new Map();
+const pinchStates = new Map();
 let tracker;
 let robotArm;
 let robotArmLoading;
-let latestLandmarks = null;
-let latestPinch = { active: false };
+let latestHands = [];
+let latestObjectHand = null;
 let lastUiUpdate = performance.now();
 let lastRobotUiUpdate = 0;
 let enteredRobot = false;
+let renderFailed = false;
 
 function loadRobotArm() {
   if (robotArm) return Promise.resolve(robotArm);
@@ -34,42 +36,62 @@ function loadRobotArm() {
   return robotArmLoading;
 }
 
-function handleResult({ hands, gestures }) {
-  const rightHandIndex = gestures.handednesses?.findIndex((hand) => (hand?.[0]?.displayName || hand?.[0]?.categoryName) === "Right");
-  const handIndex = rightHandIndex >= 0 ? rightHandIndex : 0;
-  latestLandmarks = hands.landmarks?.[handIndex] || null;
-  const rawGesture = getGesture(gestures, handIndex);
-  const gesture = gestureStabilizer.update(rawGesture);
-  latestPinch = getPinch(latestLandmarks);
-  const handedness = getHandedness(gestures, handIndex);
+function handleResult({ result }) {
+  latestHands = (result.landmarks || []).map((landmarks, index) => {
+    const handedness = getHandedness(result, index);
+    const rawGesture = getGesture(result, index);
+    if (!gestureStabilizers.has(handedness)) gestureStabilizers.set(handedness, new GestureStabilizer({ threshold: 0.62, samples: 3 }));
+    const gesture = gestureStabilizers.get(handedness).update(rawGesture);
+    const pinch = getPinch(landmarks, pinchStates.get(handedness) || false);
+    pinchStates.set(handedness, pinch.active);
+    return { landmarks, handedness, gesture, pinch, pose: getPalmPose(landmarks) };
+  });
+  const rightHand = latestHands.find((hand) => hand.handedness === "Right");
+  latestObjectHand = latestHands.find((hand) => hand.handedness === "Right" && hand.pinch.active)
+    || latestHands.find((hand) => hand.pinch.active)
+    || rightHand
+    || latestHands[0]
+    || null;
+  const primaryHand = rightHand || latestHands[0];
   performanceMonitor.frame("ai");
   const now = performance.now();
-  virtualHand.update(latestLandmarks, gesture.name, latestPinch.active);
-  robotController.updateFromHand(latestLandmarks, latestPinch, now);
-  if (ui.getOptions().showSkeleton) drawCameraLandmarks(ui.refs.cameraOverlay, latestLandmarks, ui.getOptions().mirror); else drawCameraLandmarks(ui.refs.cameraOverlay, null);
-  const controlPoint = getControlPoint(latestLandmarks);
-  ui.updateObject(controlPoint, latestPinch.active);
+  virtualHand.update(latestHands);
+  robotController.updateFromHands(latestHands, now);
+  if (ui.getOptions().showSkeleton) drawCameraLandmarks(ui.refs.cameraOverlay, latestHands, ui.getOptions().mirror); else drawCameraLandmarks(ui.refs.cameraOverlay, [], ui.getOptions().mirror);
   if (now - lastUiUpdate < 120) return;
   lastUiUpdate = now;
-  ui.setTracking(Boolean(latestLandmarks));
-  ui.setMetrics({ gesture: gesture.name, confidence: gesture.confidence, handedness, aiFps: performanceMonitor.aiFps, renderFps: performanceMonitor.renderFps, pinch: latestPinch.active, landmarks: latestLandmarks, frameWidth: ui.refs.video.videoWidth, frameHeight: ui.refs.video.videoHeight });
-  ui.addHistory(gesture.name);
+  ui.setTracking(latestHands.length > 0);
+  ui.setMetrics({ hands: latestHands, gesture: primaryHand?.gesture.name || "NONE", confidence: primaryHand?.gesture.confidence || 0, handedness: latestHands.map((hand) => hand.handedness).join(" + ") || "--", aiFps: performanceMonitor.aiFps, renderFps: performanceMonitor.renderFps, pinch: latestHands.some((hand) => hand.pinch.active), landmarks: latestHands, frameWidth: ui.refs.video.videoWidth, frameHeight: ui.refs.video.videoHeight });
+  latestHands.forEach((hand) => ui.addHistory(`${hand.handedness.slice(0, 1)} · ${hand.gesture.name}`));
 }
 
 function render(now) {
   performanceMonitor.frame("render");
-  if (ui.mode === "robot" && robotArm) {
-    robotController.smooth(now);
-    const state = robotController.getState();
-    robotArm.update(state, now);
-    robotArm.render();
-    if (now - lastRobotUiUpdate >= 100) {
-      const position = state.target.handPosition || { x: 0.5, y: 0.63, z: 0.41 };
-      ui.updateRobot(state, position, { aiFps: performanceMonitor.aiFps, renderFps: performanceMonitor.renderFps }, Boolean(latestLandmarks));
-      lastRobotUiUpdate = now;
+  try {
+    if ((ui.mode === "robot" || ui.mode === "object") && robotArm && !renderFailed) {
+      robotArm.setDisplayMode(ui.mode);
+      if (ui.mode === "robot") {
+        robotController.smooth(now);
+        const state = robotController.getState();
+        robotArm.update(state, now);
+        if (now - lastRobotUiUpdate >= 100) {
+          const position = state.target.handPosition || { x: 0.5, y: 0.63, z: 0.41 };
+          ui.updateRobot(state, position, { aiFps: performanceMonitor.aiFps, renderFps: performanceMonitor.renderFps }, latestHands.length > 0);
+          lastRobotUiUpdate = now;
+        }
+      } else {
+        const objectState = robotArm.updateObjectHand(latestObjectHand, now);
+        ui.updateObjectState(objectState, Boolean(latestObjectHand));
+      }
+      robotArm.render();
+    } else {
+      virtualHand.draw(now);
     }
-  } else {
-    virtualHand.draw(now);
+  } catch (error) {
+    renderFailed = true;
+    console.error("Workspace rendering stopped", error);
+    ui.refs.robotAction.textContent = "3D WORKSPACE ERROR";
+    ui.error(`The 3D workspace stopped: ${error.message || "unknown rendering error"}. Reload and reopen this mode.`);
   }
   requestAnimationFrame(render);
 }
@@ -77,10 +99,13 @@ function render(now) {
 function cameraError(error) {
   tracker?.destroy();
   tracker = null;
-  latestLandmarks = null;
-  latestPinch = { active: false };
-  virtualHand.update(null, "NONE", false);
-  drawCameraLandmarks(ui.refs.cameraOverlay, null);
+  latestHands = [];
+  latestObjectHand = null;
+  robotController.updateFromHands([], performance.now());
+  pinchStates.clear();
+  gestureStabilizers.clear();
+  virtualHand.update([]);
+  drawCameraLandmarks(ui.refs.cameraOverlay, []);
   ui.setStatus("offline");
   const messages = {
     NotAllowedError: "Camera access was denied. Allow camera access for this site in your browser settings.",
@@ -93,9 +118,16 @@ function cameraError(error) {
 
 function handleMode(mode) {
   if (mode === "robot" && !enteredRobot) { enteredRobot = true; document.querySelector("#robot-training").showModal(); }
-  if (mode === "robot") {
+  if (mode === "robot" || mode === "object") {
+    renderFailed = false;
     robotController.setMode("free");
-    loadRobotArm().catch(() => ui.error("The 3D workspace could not be initialized. Check WebGL support and reload the page."));
+    if (mode === "robot") robotController.resetCalibration();
+    if (!robotArm) ui.refs.robotAction.textContent = "LOADING 3D WORKSPACE";
+    loadRobotArm().catch((error) => {
+      console.error("The 3D workspace could not be initialized", error);
+      ui.refs.robotAction.textContent = "3D WORKSPACE UNAVAILABLE";
+      ui.error("The 3D workspace could not be initialized. Check WebGL support and reload the page.");
+    });
   }
   else {
     robotController.setMode("free");
@@ -118,10 +150,13 @@ ui.onStart(async () => {
   if (tracker?.running) {
     tracker.destroy();
     tracker = null;
-    latestLandmarks = null;
-    latestPinch = { active: false };
-    virtualHand.update(null, "NONE", false);
-    drawCameraLandmarks(ui.refs.cameraOverlay, null);
+    latestHands = [];
+    latestObjectHand = null;
+    robotController.updateFromHands([], performance.now());
+    virtualHand.update([]);
+    drawCameraLandmarks(ui.refs.cameraOverlay, []);
+    pinchStates.clear();
+    gestureStabilizers.clear();
     ui.setStatus("offline");
     return;
   }
@@ -137,5 +172,5 @@ ui.refs.mirror.addEventListener("change", () => ui.refs.video.classList.toggle("
 ui.refs.video.classList.add("mirrored");
 document.querySelector("#close-training").addEventListener("click", () => document.querySelector("#robot-training").close());
 document.querySelector("#start-training").addEventListener("click", () => document.querySelector("#robot-training").close());
-window.addEventListener("beforeunload", () => { tracker?.destroy(); robotArm?.destroy(); });
+window.addEventListener("beforeunload", () => { tracker?.destroy(); robotArm?.destroy(); virtualHand.destroy(); });
 requestAnimationFrame(render);

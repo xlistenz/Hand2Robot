@@ -2,7 +2,6 @@ import * as THREE from "three";
 import { ObjectInteraction } from "./objectInteraction.js";
 
 const accent = 0xd96c35;
-const metal = 0x51524e;
 const darkMetal = 0x292a28;
 const lightMetal = 0x85857f;
 const background = 0xf4f2ed;
@@ -30,6 +29,7 @@ export class RobotArm {
     this.createEnvironment();
     this.createArm();
     this.objects = new ObjectInteraction(this.scene);
+    this.displayMode = "robot";
     this.resizeObserver = new ResizeObserver(() => this.resize());
     this.resizeObserver.observe(container);
     this.resize();
@@ -123,7 +123,7 @@ export class RobotArm {
     this.root.add(this.base);
 
     const baseMesh = new THREE.Mesh(
-      new THREE.CylinderGeometry(0.82, 0.95, 0.42, 32),
+      new THREE.CylinderGeometry(0.82, 0.95, 0.28, 40),
       new THREE.MeshStandardMaterial({ color: darkMetal, metalness: 0.42, roughness: 0.62 }),
     );
     baseMesh.castShadow = true;
@@ -135,75 +135,129 @@ export class RobotArm {
       new THREE.MeshStandardMaterial({ color: accent, metalness: 0.2, roughness: 0.68 }),
     );
     baseBand.rotation.x = Math.PI / 2;
-    baseBand.position.y = 0.19;
+    baseBand.position.y = 0.15;
     this.base.add(baseBand);
 
     this.shoulder = new THREE.Group();
-    this.shoulder.position.y = 0.3;
+    this.shoulder.position.y = 0.24;
     this.base.add(this.shoulder);
-    const shoulderMesh = new THREE.Mesh(
-      new THREE.SphereGeometry(0.38, 24, 16),
-      new THREE.MeshStandardMaterial({ color: metal, metalness: 0.28, roughness: 0.72 }),
-    );
-    shoulderMesh.castShadow = true;
-    this.shoulder.add(shoulderMesh);
-
-    this.upper = this.makeSegment(0.95, 0.18);
-    this.upper.position.y = 0.48;
+    this.addServo(this.shoulder, [0, 0, 0], [0.66, 0.34, 0.42], true);
+    this.shoulder.add(this.makeJoint(0.28, [0.34, 0, 0]));
+    this.upper = this.makeSegment(0.94, 0.34);
+    this.upper.position.y = 0.22;
     this.shoulder.add(this.upper);
     this.elbow = new THREE.Group();
-    this.elbow.position.y = 0.98;
+    this.elbow.position.y = 1.12;
     this.shoulder.add(this.elbow);
-    this.elbowJoint = this.makeJoint();
+    this.elbowJoint = this.makeJoint(0.23);
     this.elbow.add(this.elbowJoint);
-    this.forearm = this.makeSegment(0.82, 0.15);
-    this.forearm.position.y = 0.4;
+    this.addServo(this.elbow, [0, 0, 0], [0.54, 0.3, 0.36], true);
+    this.forearm = this.makeSegment(0.78, 0.3);
+    this.forearm.position.y = 0.18;
     this.elbow.add(this.forearm);
     this.wrist = new THREE.Group();
-    this.wrist.position.y = 0.83;
+    this.wrist.position.y = 0.96;
     this.elbow.add(this.wrist);
-    this.wrist.add(this.makeJoint(0.2));
+    this.wrist.add(this.makeJoint(0.19));
+    this.addServo(this.wrist, [0, 0.14, 0], [0.44, 0.24, 0.3], false);
+    this.wristRoll = new THREE.Group();
+    this.wristRoll.position.y = 0.3;
+    this.wrist.add(this.wristRoll);
+    this.addServo(this.wristRoll, [0, 0, 0], [0.32, 0.22, 0.28], false);
     this.gripper = new THREE.Group();
-    this.gripper.position.y = 0.22;
-    this.wrist.add(this.gripper);
+    this.gripper.position.y = 0.2;
+    this.wristRoll.add(this.gripper);
+    this.addServo(this.gripper, [0, 0, 0], [0.27, 0.16, 0.23], false);
     this.fingerLeft = this.makeFinger(-1);
     this.fingerRight = this.makeFinger(1);
     this.gripper.add(this.fingerLeft, this.fingerRight);
   }
 
+  addServo(parent, position, size, horizontal) {
+    const housing = new THREE.Group();
+    housing.position.set(...position);
+    const shell = new THREE.Mesh(
+      new THREE.BoxGeometry(...size),
+      new THREE.MeshStandardMaterial({ color: 0xe5e2da, metalness: 0.08, roughness: 0.78 }),
+    );
+    shell.castShadow = true;
+    shell.receiveShadow = true;
+    housing.add(shell);
+    const cap = new THREE.Mesh(
+      new THREE.BoxGeometry(size[0] * 0.72, size[1] * 0.86, size[2] * 0.07),
+      new THREE.MeshStandardMaterial({ color: 0x4a4b47, metalness: 0.32, roughness: 0.62 }),
+    );
+    cap.position.z = size[2] * 0.51;
+    housing.add(cap);
+    const label = new THREE.Mesh(
+      new THREE.BoxGeometry(size[0] * 0.34, size[1] * 0.1, 0.012),
+      new THREE.MeshStandardMaterial({ color: accent, roughness: 0.66 }),
+    );
+    label.position.set(0, size[1] * 0.25, size[2] * 0.55);
+    housing.add(label);
+    const shaft = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.055, 0.055, horizontal ? size[0] * 0.92 : size[1] * 0.92, 16),
+      new THREE.MeshStandardMaterial({ color: 0x777873, metalness: 0.66, roughness: 0.38 }),
+    );
+    if (horizontal) shaft.rotation.z = Math.PI / 2;
+    shaft.position.x = horizontal ? size[0] * 0.48 : size[0] * 0.4;
+    housing.add(shaft);
+    parent.add(housing);
+    return housing;
+  }
+
   makeSegment(length, width) {
     const group = new THREE.Group();
-    const body = new THREE.Mesh(
-      new THREE.BoxGeometry(width, length, width),
-      new THREE.MeshStandardMaterial({ color: metal, metalness: 0.24, roughness: 0.7 }),
+    const shell = new THREE.Mesh(
+      new THREE.BoxGeometry(width * 0.6, length, width * 0.62),
+      new THREE.MeshStandardMaterial({ color: 0xdad8d1, metalness: 0.08, roughness: 0.78 }),
     );
-    body.position.y = length / 2;
-    body.castShadow = true;
-    body.receiveShadow = true;
-    group.add(body);
-
+    shell.position.y = length / 2;
+    shell.castShadow = true;
+    shell.receiveShadow = true;
+    group.add(shell);
+    for (const side of [-1, 1]) {
+      const rail = new THREE.Mesh(
+        new THREE.BoxGeometry(0.055, length * 0.96, width * 0.78),
+        new THREE.MeshStandardMaterial({ color: side < 0 ? 0x53544f : 0x777873, metalness: 0.22, roughness: 0.67 }),
+      );
+      rail.position.set(side * width * 0.42, length / 2, 0);
+      rail.castShadow = true;
+      group.add(rail);
+      for (const y of [length * 0.16, length * 0.84]) {
+        const bolt = new THREE.Mesh(
+          new THREE.CylinderGeometry(0.034, 0.034, 0.018, 12),
+          new THREE.MeshStandardMaterial({ color: 0x343531, metalness: 0.46, roughness: 0.48 }),
+        );
+        bolt.rotation.z = Math.PI / 2;
+        bolt.position.set(side * width * 0.51, y, width * 0.2);
+        group.add(bolt);
+      }
+    }
     const marker = new THREE.Mesh(
-      new THREE.BoxGeometry(width * 0.13, length * 0.56, 0.012),
-      new THREE.MeshStandardMaterial({ color: accent, metalness: 0.12, roughness: 0.74 }),
+      new THREE.BoxGeometry(width * 0.16, length * 0.42, 0.018),
+      new THREE.MeshStandardMaterial({ color: accent, metalness: 0.08, roughness: 0.72 }),
     );
-    marker.position.set(width * 0.27, length / 2, width / 2 + 0.007);
+    marker.position.set(0, length * 0.53, width * 0.32);
     group.add(marker);
     return group;
   }
 
-  makeJoint(radius = 0.18) {
+  makeJoint(radius = 0.18, position = [0, 0, 0]) {
     const joint = new THREE.Group();
+    joint.position.set(...position);
     const core = new THREE.Mesh(
-      new THREE.SphereGeometry(radius, 20, 14),
+      new THREE.CylinderGeometry(radius, radius, 0.24, 24),
       new THREE.MeshStandardMaterial({ color: lightMetal, metalness: 0.28, roughness: 0.64 }),
     );
+    core.rotation.z = Math.PI / 2;
     core.castShadow = true;
     joint.add(core);
     const collar = new THREE.Mesh(
       new THREE.TorusGeometry(radius * 0.8, 0.014, 6, 32),
       new THREE.MeshStandardMaterial({ color: accent, metalness: 0.14, roughness: 0.72 }),
     );
-    collar.rotation.x = Math.PI / 2;
+    collar.rotation.y = Math.PI / 2;
     joint.add(collar);
     return joint;
   }
@@ -212,14 +266,14 @@ export class RobotArm {
     const finger = new THREE.Group();
     finger.position.x = side * 0.09;
     const body = new THREE.Mesh(
-      new THREE.BoxGeometry(0.06, 0.25, 0.1),
-      new THREE.MeshStandardMaterial({ color: metal, metalness: 0.22, roughness: 0.72 }),
+      new THREE.BoxGeometry(0.07, 0.27, 0.12),
+      new THREE.MeshStandardMaterial({ color: 0xdad8d1, metalness: 0.12, roughness: 0.75 }),
     );
     body.position.y = 0.12;
     finger.add(body);
     const pad = new THREE.Mesh(
-      new THREE.BoxGeometry(0.065, 0.055, 0.105),
-      new THREE.MeshStandardMaterial({ color: accent, metalness: 0.05, roughness: 0.86 }),
+      new THREE.BoxGeometry(0.074, 0.065, 0.13),
+      new THREE.MeshStandardMaterial({ color: 0x454641, metalness: 0.02, roughness: 0.9 }),
     );
     pad.position.y = 0.015;
     finger.add(pad);
@@ -233,12 +287,31 @@ export class RobotArm {
     this.shoulder.rotation.z = -state.shoulder;
     this.elbow.rotation.z = state.elbow - 0.8;
     this.wrist.rotation.z = state.wrist;
+    this.wristRoll.rotation.y = state.wristRoll || 0;
     const open = 1 - state.gripper;
     this.fingerLeft.rotation.z = 0.35 * open;
     this.fingerRight.rotation.z = -0.35 * open;
     const end = this.getGripperPosition();
-    this.objects.update(end, state.gripper > 0.55, delta);
+    this.objects.updateRobot(end, state.gripper > 0.55, delta);
     this.updateTrail(end);
+  }
+
+  setDisplayMode(mode) {
+    if (this.displayMode === mode) return;
+    if (this.displayMode !== mode) this.objects.release();
+    this.displayMode = mode;
+    const objectMode = mode === "object";
+    this.root.visible = !objectMode;
+    this.objects.group.visible = true;
+    this.camera.position.set(...(objectMode ? [3.4, 5.8, 5.6] : [4.2, 3.2, 5.7]));
+    this.camera.lookAt(0, objectMode ? 0.15 : 1.3, 0);
+    this.camera.updateProjectionMatrix();
+  }
+
+  updateObjectHand(hand, now = performance.now()) {
+    const delta = Math.max(0, Math.min(0.1, (now - this.lastUpdateTime) / 1000));
+    this.lastUpdateTime = now;
+    return this.objects.update(hand, delta);
   }
 
   getGripperPosition() {

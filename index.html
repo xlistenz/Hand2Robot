@@ -71,12 +71,11 @@
               <strong>Workspace ready</strong>
               <small>Start the camera to see live hand landmarks.</small>
             </div>
-            <div class="object-orb" id="object-orb" aria-label="Interactive object"><span></span></div>
           </div>
 
           <div class="robot-stage hidden" id="robot-stage" aria-label="Three-dimensional virtual robot arm">
             <div id="robot-canvas"></div>
-            <div class="robot-overlay"><span>VIRTUAL ROBOT ARM</span><b id="robot-action">WAITING FOR HAND TRACKING</b></div>
+            <div class="robot-overlay"><span id="robot-view-title">SO-ARM101 INSPIRED VIRTUAL ARM</span><b id="robot-action">WAITING FOR HAND TRACKING</b></div>
             <div class="robot-crosshair" aria-hidden="true"></div>
           </div>
 
@@ -120,10 +119,12 @@
             <div class="robot-readouts">
               <div><span>ARM STATUS</span><b id="arm-status">ACTIVE</b></div>
               <div><span>BASE</span><b id="arm-base">0°</b></div>
-              <div><span>SHOULDER</span><b id="arm-shoulder">15°</b></div>
+              <div><span>SHOULDER</span><b id="arm-shoulder">24°</b></div>
               <div><span>ELBOW</span><b id="arm-elbow">45°</b></div>
-              <div><span>WRIST</span><b id="arm-wrist">0°</b></div>
+              <div><span>WRIST PITCH</span><b id="arm-wrist">0°</b></div>
+              <div><span>WRIST ROLL</span><b id="arm-wrist-roll">0°</b></div>
               <div><span>GRIPPER</span><b id="arm-gripper">OPEN</b></div>
+              <div><span>AI / RENDER</span><b id="arm-fps">-- / -- FPS</b></div>
             </div>
 
             <div class="robot-actions">
@@ -134,7 +135,7 @@
             </div>
 
             <div class="slider-row">
-              <label for="sensitivity">SENSITIVITY <output id="sensitivity-value">50%</output><input id="sensitivity" type="range" min="0" max="100" value="50" /></label>
+              <label for="sensitivity">SENSITIVITY <output id="sensitivity-value">85%</output><input id="sensitivity" type="range" min="0" max="100" value="85" /></label>
               <label for="smoothness">DAMPING <output id="smoothness-value">70%</output><input id="smoothness" type="range" min="0" max="100" value="70" /></label>
               <label for="dead-zone">DEAD ZONE <output id="dead-zone-value">5%</output><input id="dead-zone" type="range" min="0" max="20" value="5" /></label>
             </div>
@@ -143,6 +144,7 @@
               <span>HAND POSITION</span>
               <b>X <i id="arm-x">0.50</i></b><b>Y <i id="arm-y">0.63</i></b><b>Z <i id="arm-z">0.41</i></b>
             </div>
+            <div class="hand-mapping"><span>RIGHT HAND</span><small>BASE · ARM HEIGHT / REACH · WRIST</small><span>LEFT HAND</span><small>PINCH TO CLOSE THE GRIPPER</small><span>SINGLE HAND</span><small>MOVE + PINCH TO CONTROL BOTH</small></div>
             <label class="performance-chip"><input id="performance-toggle" type="checkbox" /> PERFORMANCE MODE</label>
           </section>
         </aside>
@@ -166,9 +168,9 @@
       <span class="panel-index">ROBOT ARM / QUICK GUIDE</span>
       <h2>Control the arm with your hand</h2>
       <ol class="training-steps">
-        <li><b>01</b><span>Move your hand<br />Set the arm position</span></li>
-        <li><b>02</b><span>Rotate your palm<br />Set the wrist angle</span></li>
-        <li><b>03</b><span>Pinch<br />Close the gripper</span></li>
+        <li><b>01</b><span>Move your right hand<br />Set base, height, and reach</span></li>
+        <li><b>02</b><span>Rotate your right wrist<br />Set the wrist angle</span></li>
+        <li><b>03</b><span>Pinch with your left hand<br />Close the gripper</span></li>
         <li><b>04</b><span>Release<br />Drop the object</span></li>
       </ol>
       <button class="primary-button" id="start-training" type="button">GOT IT</button>

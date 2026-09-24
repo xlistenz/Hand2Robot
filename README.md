@@ -9,13 +9,13 @@
 
 ## Features
 
-- Live webcam input with MediaPipe Hand Landmarker and Gesture Recognizer.
+- Live webcam input with one MediaPipe Gesture Recognizer tracking both hands and their gestures together.
 - Detection of 21 landmarks on up to two hands, with a hand-skeleton overlay and mirror-view option.
 - Gesture classification for Open Palm, Fist, Pointing Up, Thumbs Up, Victory, and I Love You.
 - Virtual Hand view with depth-responsive scale and pinch feedback.
-- Robot Arm view with an industrial-style 3D work area, X/Y/Z axes, coordinate origin, and movable objects.
-- Hand-driven base, shoulder, elbow, and wrist controls; pinch opens and closes the gripper.
-- Object interaction with a cube, sphere, cylinder, ring, and box.
+- Robot Arm view with a 3D arm inspired by the SO-ARM101 joint layout, an industrial-style work area, X/Y/Z axes, and movable objects.
+- Right-hand motion controls the base, arm height and reach, and wrist pitch and roll; pinch with the left hand to close the gripper. With one hand, its pinch controls the gripper.
+- Direct 3D object interaction with a cube, sphere, cylinder, ring, and box: pinch near an object to pick it up, move it through the workspace, and rotate it by turning the wrist.
 - Free, Precise, and Demo robot modes, plus Home, Emergency Stop, and Resume controls.
 - Sensitivity, damping, and dead-zone settings, plus a Performance Mode that lowers rendering resolution to free GPU headroom for tracking.
 - Objects view, Gesture Lab, Settings, gesture history, confidence and handedness readouts, AI/render FPS, and live landmark coordinates.
@@ -26,14 +26,16 @@
 | Mode | What it shows |
 | --- | --- |
 | Virtual Hand | A live hand-landmark visualization with pinch feedback. |
-| Robot Arm | A simulated arm controlled by hand position, palm tilt, hand scale, and pinch. Includes joint values and robot controls. |
-| Objects | A draggable screen-space object controlled by the index fingertip and pinch. |
+| Robot Arm | An SO-ARM101-inspired virtual arm controlled by both hands. Includes live joint values and robot controls. |
+| Objects | A 3D workbench where a hand pinch picks up, moves, and wrist-rotates objects. |
 | Gesture Lab | Gesture confidence, tracking state, and recent gesture history. |
 | Settings | Camera overlay and mirror options; robot performance controls are available in Robot Arm mode. |
 
 ## Robot controls
 
-Move the right hand left or right to rotate the base, move it up or down to raise or lower the arm, and change its apparent size to extend or retract the elbow. Palm tilt adjusts the wrist. Pinch the thumb and index finger to close the gripper and release to open it.
+Move the right hand left or right to rotate the base, move it vertically to raise or lower the arm, and move it closer to or farther from the camera to adjust its reach. Turn the wrist to control wrist pitch and roll. Pinch with the left hand to close the gripper; with only one tracked hand, that hand controls both the arm and gripper.
+
+The virtual arm is a Three.js interpretation of the SO-ARM101-style servo and joint arrangement. See [TheRobotStudio SO-ARM100/SO-ARM101 project](https://github.com/TheRobotStudio/SO-ARM100) for the physical design reference. This project does not include the official CAD files or control a physical arm.
 
 Precise mode reduces hand-control sensitivity. Demo mode runs a repeating arm sequence. Home returns the arm to its preset position, Emergency Stop halts motion, and Resume re-enables hand control. The simulated gripper can pick up nearby objects and move them; released objects stay where they are dropped.
 
@@ -43,11 +45,11 @@ Precise mode reduces hand-control sensitivity. Demo mode runs a repeating arm se
 | --- | --- |
 | Open Palm | Recognized as an open hand. |
 | Fist | Recognized as a closed hand. |
-| Pointing Up | In Objects mode, the index fingertip moves the object cursor. |
+| Pointing Up | Displayed in the gesture readouts and history. |
 | Thumbs Up | Displayed in the gesture readouts and history. |
 | Victory | Displayed in the gesture readouts and history. |
 | I Love You | Displayed when recognized by the MediaPipe model. |
-| Pinch | Closes the robot gripper or grabs the screen-space object, depending on the active mode. |
+| Pinch | Closes the gripper in Robot Arm mode or grabs a nearby 3D object in Objects mode. |
 
 ## Run locally
 

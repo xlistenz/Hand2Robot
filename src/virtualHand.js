@@ -4,9 +4,7 @@ export class VirtualHand {
   constructor(canvas) {
     this.canvas = canvas;
     this.ctx = canvas.getContext("2d");
-    this.landmarks = null;
-    this.gesture = "NONE";
-    this.pinch = false;
+    this.hands = [];
     this.performanceMode = false;
     this.resizeObserver = new ResizeObserver(() => this.resize());
     this.resizeObserver.observe(canvas.parentElement);
@@ -29,36 +27,39 @@ export class VirtualHand {
     this.resize();
   }
 
-  update(landmarks, gesture, pinch) {
-    this.landmarks = landmarks;
-    this.gesture = gesture;
-    this.pinch = pinch;
+  update(hands = []) {
+    this.hands = hands;
   }
 
   draw() {
     const ctx = this.ctx;
     const { width, height } = this;
     ctx.clearRect(0, 0, width, height);
-    if (!this.landmarks) return;
-
-    const points = this.landmarks.map((point) => ({ x: (1 - point.x) * width, y: point.y * height }));
-    const palm = points[0];
-    const palmWidth = Math.hypot(points[5].x - points[17].x, points[5].y - points[17].y);
-    const scale = Math.max(0.85, Math.min(1.18, palmWidth / (Math.min(width, height) * 0.26)));
-    ctx.save();
-    ctx.translate(palm.x, palm.y);
-    ctx.scale(scale, scale);
-    ctx.translate(-palm.x, -palm.y);
-    this.drawConnections(ctx, points);
-    this.drawPalmMesh(ctx, points);
-    this.drawJoints(ctx, points);
-    ctx.restore();
+    this.hands.forEach((hand) => {
+      const points = hand.landmarks.map((point) => ({ x: (1 - point.x) * width, y: point.y * height }));
+      const palm = points[0];
+      const palmWidth = Math.hypot(points[5].x - points[17].x, points[5].y - points[17].y);
+      const scale = Math.max(0.88, Math.min(1.18, palmWidth / (Math.min(width, height) * 0.26)));
+      const color = hand.handedness === "Left" ? "#72806f" : "#d96c35";
+      ctx.save();
+      ctx.translate(palm.x, palm.y);
+      ctx.scale(scale, scale);
+      ctx.translate(-palm.x, -palm.y);
+      this.drawConnections(ctx, points, color);
+      this.drawPalmMesh(ctx, points, color);
+      this.drawJoints(ctx, points, hand.pinch.active, color);
+      ctx.restore();
+      ctx.fillStyle = color;
+      ctx.font = "600 10px ui-monospace, monospace";
+      ctx.fillText(hand.handedness.toUpperCase(), palm.x + 8, palm.y - 10);
+    });
   }
 
-  drawConnections(ctx, points) {
+  drawConnections(ctx, points, color) {
     ctx.lineCap = "round";
-    ctx.strokeStyle = "#4c4e49";
-    ctx.lineWidth = 2.5;
+    ctx.strokeStyle = color;
+    ctx.globalAlpha = 0.88;
+    ctx.lineWidth = 2.3;
     CONNECTIONS.forEach(([from, to]) => {
       ctx.beginPath();
       ctx.moveTo(points[from].x, points[from].y);
@@ -67,9 +68,10 @@ export class VirtualHand {
     });
   }
 
-  drawPalmMesh(ctx, points) {
+  drawPalmMesh(ctx, points, color) {
     const palm = [points[0], points[5], points[9], points[13], points[17]];
-    ctx.strokeStyle = "rgba(76, 78, 73, .2)";
+    ctx.strokeStyle = color;
+    ctx.globalAlpha = 0.24;
     ctx.lineWidth = 1;
     for (let index = 0; index < palm.length; index += 1) {
       const next = palm[(index + 1) % palm.length];
@@ -86,12 +88,12 @@ export class VirtualHand {
     }
   }
 
-  drawJoints(ctx, points) {
+  drawJoints(ctx, points, pinch, color) {
     points.forEach((point, index) => {
-      const pinchTip = this.pinch && [4, 8].includes(index);
+      const pinchTip = pinch && [4, 8].includes(index);
       ctx.beginPath();
-      ctx.fillStyle = index === 0 || pinchTip ? "#d96c35" : "#fbfaf7";
-      ctx.strokeStyle = index === 0 || pinchTip ? "#d96c35" : "#4c4e49";
+      ctx.fillStyle = index === 0 || pinchTip ? color : "#fbfaf7";
+      ctx.strokeStyle = color;
       ctx.lineWidth = 1.5;
       ctx.arc(point.x, point.y, index === 0 ? 5 : 3.5, 0, Math.PI * 2);
       ctx.fill();
@@ -102,7 +104,7 @@ export class VirtualHand {
   destroy() { this.resizeObserver.disconnect(); }
 }
 
-export function drawCameraLandmarks(canvas, landmarks, mirrored = true) {
+export function drawCameraLandmarks(canvas, hands = [], mirrored = true) {
   const ctx = canvas.getContext("2d");
   const width = canvas.clientWidth;
   const height = canvas.clientHeight;
@@ -113,27 +115,32 @@ export function drawCameraLandmarks(canvas, landmarks, mirrored = true) {
     ctx.setTransform(ratio, 0, 0, ratio, 0, 0);
   }
   ctx.clearRect(0, 0, width, height);
-  if (!landmarks) return;
+  if (!hands?.length) return;
 
   const point = (item) => ({ x: (mirrored ? 1 - item.x : item.x) * width, y: item.y * height });
-  ctx.strokeStyle = "rgba(217, 108, 53, .82)";
-  ctx.lineWidth = 1.5;
-  CONNECTIONS.forEach(([from, to]) => {
-    const start = point(landmarks[from]);
-    const end = point(landmarks[to]);
-    ctx.beginPath();
-    ctx.moveTo(start.x, start.y);
-    ctx.lineTo(end.x, end.y);
-    ctx.stroke();
-  });
-  landmarks.forEach((item) => {
-    const target = point(item);
-    ctx.fillStyle = "#fbfaf7";
-    ctx.strokeStyle = "#d96c35";
-    ctx.lineWidth = 1.2;
-    ctx.beginPath();
-    ctx.arc(target.x, target.y, 2.5, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.stroke();
+  hands.forEach((hand) => {
+    const landmarks = hand.landmarks;
+    const color = hand.handedness === "Left" ? "#72806f" : "#d96c35";
+    ctx.strokeStyle = color;
+    ctx.globalAlpha = 0.88;
+    ctx.lineWidth = 1.5;
+    CONNECTIONS.forEach(([from, to]) => {
+      const start = point(landmarks[from]);
+      const end = point(landmarks[to]);
+      ctx.beginPath();
+      ctx.moveTo(start.x, start.y);
+      ctx.lineTo(end.x, end.y);
+      ctx.stroke();
+    });
+    landmarks.forEach((item) => {
+      const target = point(item);
+      ctx.fillStyle = "#fbfaf7";
+      ctx.strokeStyle = color;
+      ctx.lineWidth = 1.2;
+      ctx.beginPath();
+      ctx.arc(target.x, target.y, 2.5, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.stroke();
+    });
   });
 }

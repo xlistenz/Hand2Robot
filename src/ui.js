@@ -12,11 +12,11 @@ export function createUI() {
     video: $("#camera-video"), cameraOverlay: $("#camera-overlay"), placeholder: $("#camera-placeholder"), start: $("#start-camera"),
     cameraState: $("#camera-state"), cameraResolution: $("#camera-resolution"), headerAiFps: $("#header-ai-fps"),
     tracking: $("#tracking-state"), stageMessage: $("#stage-message"), virtualStage: $("#virtual-stage"), robotStage: $("#robot-stage"), robotCanvas: $("#robot-canvas"),
-    object: $("#object-orb"), skeleton: $("#skeleton-toggle"), mirror: $("#mirror-toggle"), modeLabel: $("#mode-label"), gestureLabel: $("#gesture-label"),
+    skeleton: $("#skeleton-toggle"), mirror: $("#mirror-toggle"), modeLabel: $("#mode-label"), gestureLabel: $("#gesture-label"),
     metricGesture: $("#metric-gesture"), metricConfidence: $("#metric-confidence"), metricHand: $("#metric-hand"), metricTracking: $("#metric-tracking"), metricFps: $("#metric-fps"), metricPinch: $("#metric-pinch"),
     history: $("#gesture-history"), developerToggle: $("#developer-toggle"), developerPanel: $("#developer-panel"), landmarkGrid: $("#landmark-grid"),
     bottomStatus: $("#bottom-status"), bottomAiFps: $("#bottom-ai-fps"), bottomRenderFps: $("#bottom-render-fps"), toast: $("#toast"),
-    robotControls: $("#robot-controls"), robotAction: $("#robot-action"), armStatus: $("#arm-status"), armBase: $("#arm-base"), armShoulder: $("#arm-shoulder"), armElbow: $("#arm-elbow"), armWrist: $("#arm-wrist"), armGripper: $("#arm-gripper"), armFps: $("#arm-fps"), armX: $("#arm-x"), armY: $("#arm-y"), armZ: $("#arm-z"),
+    robotControls: $("#robot-controls"), robotAction: $("#robot-action"), robotViewTitle: $("#robot-view-title"), armStatus: $("#arm-status"), armBase: $("#arm-base"), armShoulder: $("#arm-shoulder"), armElbow: $("#arm-elbow"), armWrist: $("#arm-wrist"), armWristRoll: $("#arm-wrist-roll"), armGripper: $("#arm-gripper"), armFps: $("#arm-fps"), armX: $("#arm-x"), armY: $("#arm-y"), armZ: $("#arm-z"),
     sensitivity: $("#sensitivity"), smoothness: $("#smoothness"), deadZone: $("#dead-zone"), performance: $("#performance-toggle"),
   };
 
@@ -66,9 +66,10 @@ export function createUI() {
     refs.metricTracking.classList.toggle("success-text", active);
   }
 
-  function setMetrics({ gesture, confidence, handedness, aiFps, renderFps, pinch, landmarks, frameWidth, frameHeight }) {
-    refs.gestureLabel.textContent = gesture;
-    refs.metricGesture.textContent = gesture;
+  function setMetrics({ hands = [], gesture, confidence, handedness, aiFps, renderFps, pinch, landmarks, frameWidth, frameHeight }) {
+    const displayedGesture = hands.length > 1 ? hands.map((hand) => `${hand.handedness.slice(0, 1)}: ${hand.gesture.name}`).join(" / ") : gesture;
+    refs.gestureLabel.textContent = displayedGesture;
+    refs.metricGesture.textContent = displayedGesture;
     refs.metricConfidence.textContent = confidence > 0 ? `${Math.round(confidence * 100)}%` : "--%";
     refs.metricHand.textContent = handedness;
     refs.metricFps.textContent = aiFps || "--";
@@ -89,31 +90,27 @@ export function createUI() {
     refs.history.innerHTML = history.map((item) => `<li><time>${item.time}</time><span>${item.gesture}</span></li>`).join("");
   }
 
-  function updateLandmarks(landmarks) {
-    if (!developerMode || !landmarks) return;
-    refs.landmarkGrid.innerHTML = landmarks.map((point, index) => `<div><span>${String(index).padStart(2, "0")} · ${LANDMARK_NAMES[index]}</span><b>X ${point.x.toFixed(3)} Y ${point.y.toFixed(3)} Z ${point.z.toFixed(3)}</b></div>`).join("");
+  function updateLandmarks(hands) {
+    if (!developerMode || !hands) return;
+    refs.landmarkGrid.innerHTML = hands.map((hand) => `<strong>${hand.handedness.toUpperCase()}</strong>${hand.landmarks.map((point, index) => `<div><span>${String(index).padStart(2, "0")} · ${LANDMARK_NAMES[index]}</span><b>X ${point.x.toFixed(3)} Y ${point.y.toFixed(3)} Z ${point.z.toFixed(3)}</b></div>`).join("")}`).join("");
   }
 
   function setMode(mode) {
     currentMode = mode;
     const labels = { virtual: "VIRTUAL HAND", robot: "ROBOT ARM", object: "OBJECTS", lab: "GESTURE LAB", settings: "SETTINGS" };
     refs.modeLabel.textContent = labels[mode] || labels.virtual;
-    refs.virtualStage.classList.toggle("hidden", mode === "robot");
-    refs.robotStage.classList.toggle("hidden", mode !== "robot");
+    const showThreeDimensionalStage = mode === "robot" || mode === "object";
+    refs.virtualStage.classList.toggle("hidden", showThreeDimensionalStage);
+    refs.robotStage.classList.toggle("hidden", !showThreeDimensionalStage);
     refs.robotControls.classList.toggle("hidden", mode !== "robot");
-    refs.object.classList.toggle("visible", mode === "object");
+    refs.robotViewTitle.textContent = mode === "object" ? "3D OBJECT CONTROL" : "SO-ARM101 INSPIRED VIRTUAL ARM";
+    if (mode === "object") refs.robotAction.textContent = "PINCH WITH EITHER HAND · MOVE · TURN WRIST";
+    else if (mode === "robot") refs.robotAction.textContent = "RIGHT HAND MOVES THE ARM · LEFT HAND PINCHES THE GRIPPER";
     document.querySelectorAll(".menu-button").forEach((button) => {
       const active = button.dataset.appMode === mode;
       button.classList.toggle("active", active);
       button.setAttribute("aria-pressed", String(active));
     });
-  }
-
-  function updateObject(point, grabbed) {
-    if (!point || currentMode !== "object") return;
-    refs.object.style.left = `${point.x * 100}%`;
-    refs.object.style.top = `${point.y * 100}%`;
-    refs.object.classList.toggle("grabbed", grabbed);
   }
 
   function updateRobot(state, position, fps, tracking) {
@@ -123,12 +120,19 @@ export function createUI() {
     refs.armShoulder.textContent = `${Math.round(state.shoulder * 57.3)}°`;
     refs.armElbow.textContent = `${Math.round((state.elbow - 0.78) * 57.3 + 45)}°`;
     refs.armWrist.textContent = `${Math.round(state.wrist * 57.3)}°`;
+    refs.armWristRoll.textContent = `${Math.round((state.wristRoll || 0) * 57.3)}°`;
     refs.armGripper.textContent = state.gripper > 0.55 ? "CLOSED" : "OPEN";
     refs.armFps.textContent = `${fps.aiFps || "--"} / ${fps.renderFps || "--"} FPS`;
     refs.armX.textContent = position ? position.x.toFixed(2) : "0.50";
     refs.armY.textContent = position ? position.y.toFixed(2) : "0.63";
     refs.armZ.textContent = position ? position.z.toFixed(2) : "0.41";
     refs.robotAction.textContent = state.stopped ? "EMERGENCY STOP" : state.mode === "demo" ? "AUTOMATED DEMO" : !tracking ? "WAITING FOR HAND TRACKING" : state.gripper > 0.55 ? "PINCH / GRIPPER CLOSED" : "HAND CONTROL ACTIVE";
+  }
+
+  function updateObjectState(state, tracking) {
+    if (state.held) refs.robotAction.textContent = `${state.held} HELD · TURN WRIST TO ROTATE`;
+    else if (state.pinching) refs.robotAction.textContent = "MOVE PINCH NEAR AN OBJECT TO GRAB";
+    else refs.robotAction.textContent = tracking ? "PINCH AN OBJECT · MOVE · TURN WRIST" : "SHOW A HAND · PINCH TO GRAB AN OBJECT";
   }
 
   function getRobotParameters() {
@@ -182,5 +186,5 @@ export function createUI() {
   $("#close-help").addEventListener("click", () => $("#help-dialog").close());
   $("#dialog-start").addEventListener("click", () => $("#help-dialog").close());
 
-  return { refs, setStatus, setTracking, setMetrics, addHistory, updateObject, updateRobot, error, onStart, getOptions, getRobotParameters, bind, setMode, get mode() { return currentMode; } };
+  return { refs, setStatus, setTracking, setMetrics, addHistory, updateRobot, updateObjectState, error, onStart, getOptions, getRobotParameters, bind, setMode, get mode() { return currentMode; } };
 }
